@@ -3,5 +3,7 @@
 .RData
 .Ruserdata
 
-Input/
+Data/
+Figures/
 InSeasonDataUpdate.pdf
+
