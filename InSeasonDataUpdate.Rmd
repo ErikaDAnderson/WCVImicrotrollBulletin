@@ -22,9 +22,9 @@ library(tidyverse) # basic data manipulation
 library(readxl) #read excel files easily
 library(lubridate) # date times
 library(kableExtra) # pretty tables
-library(bcmaps) # quality bc basemaps
+library(bcmaps) # bc basemaps
 library(patchwork) # group plots together
-library(ggpubr) # arrange plots
+library(ggpubr) # arrange plots another way
 library(car) # stats
 
 # by default, do not show R code
@@ -34,25 +34,31 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r loadData}
 
-####### change this as new data is entered
-excelFilename <- "WCVI_template_beta_v1-3.xlsx"
+# load data from all excel files in Data folder
+site_orig <- list.files(path = "./Data/",
+                        pattern = "*.xlsx", 
+                        full.names = T) %>% 
+  map_df(~read_excel(., sheet = "01 SITE")) 
 
-# load data
-site_orig <- read_excel(here::here("Input", excelFilename),
-                        sheet = "01 SITE")
+sets_orig <- list.files(path = "./Data/",
+                        pattern = "*.xlsx", 
+                        full.names = T) %>% 
+  map_df(~read_excel(., sheet = "02 FISHING SETS")) 
 
-# *** blank column at 21 needs name "blank" or to be omitted
-sets_orig <- read_excel(here::here("Input", excelFilename),
-                        sheet = "02 FISHING SETS")
+ocean_orig <- list.files(path = "./Data/",
+                         pattern = "*.xlsx",
+                         full.names = T) %>%
+  map_df(~read_excel(., sheet = "03 OCEANOGRAPHIC DATA"))
 
-ocean_orig <- read_excel(here::here("Input", excelFilename),
-                        sheet = "03 OCEANOGRAPHIC DATA")
+fish_orig <- list.files(path = "./Data/",
+                        pattern = "*.xlsx", 
+                        full.names = T) %>% 
+  map_df(~read_excel(., sheet = "04 FISH"))
 
-fish_orig <- read_excel(here::here("Input", excelFilename),
-                        sheet = "04 FISH")
-
-stomach_orig <- read_excel(here::here("Input", excelFilename),
-                        sheet = "05 STOMACH CONTENTS")
+stomach_orig <- list.files(path = "./Data/",
+                           pattern = "*.xlsx",
+                           full.names = T) %>%
+  map_df(~read_excel(., sheet = "05 STOMACH CONTENTS"))
 
 # tidy data
 site <- site_orig %>%
@@ -166,8 +172,8 @@ if (soundName == "QUATSINO") {
 }
 
 if (soundName == "BARKLEY") {
-  minLat <- 48.7
-  maxLat <- 49.0
+  minLat <- 48.75
+  maxLat <- 49.1
   minLon <- -125.5
   maxLon <- -124.9
 }
@@ -222,7 +228,7 @@ map_ck <- basemap +
              shape = 3) +
       geom_point(data = filter(df_ck, !(is.na(species))),
              aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.3) +
+             color = "darkred", alpha = 0.5) +
   theme(axis.text = element_blank(),
         axis.title = element_blank()
         #,
@@ -238,7 +244,7 @@ map_co <- basemap +
              shape = 3) +
       geom_point(data = filter(df_co, !(is.na(species))),
              aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.3) +
+             color = "darkred", alpha = 0.5) +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         legend.position = "none") + # when there are more coho confirm that scales are same
@@ -255,27 +261,36 @@ map_ck + map_co
 # allMaps <- sound_vec %>%
 #   map(mapSoundfn, mapdf = mapdf, resolution = "low")
 
-clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "low")
-quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "low")
-barkleyMap <- mapSoundfn("BARKLEY", mapdf, "low")
+clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
+ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
+quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
+ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
+barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
+ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
 
 ```
 
-### Quatsino Sound
-```{r quatsinoMap, fig.height = 2.5, fig.cap="Quatsino Sound Catch and Fishing Effort."}
-quatsinoMap
+### Quatsino Sound  
+```{r quatsinoMap, fig.align = 'center', fig.cap = "Quatsino Sound Catch and Fishing Effort"}
+
+knitr::include_graphics(here::here("Figures", "quatsinoMap.png"))
+
 ```
-  
-### Clayoquot Sound
-```{r clayMap, fig.height = 3, fig.cap="Clayoquot Sound Catch and Fishing Effort."}
-clayoquotMap
+
+### Clayoquot Sound  
+```{r clayoquotMap, fig.align = 'center', fig.cap = "Clayoquot Sound Catch and Fishing Effort"}
+
+knitr::include_graphics(here::here("Figures", "clayoquotMap.png"))
+
 ```
-  
+
 ### Barkley Sound
-```{r barkleyMap, fig.height = 3, fig.cap="Barkley Sound Catch and Fishing Effort."}
-barkleyMap
-```
+```{r barkleyMap, fig.align = 'center', fig.cap = "Barkley Sound Catch and Fishing Effort"}
 
+knitr::include_graphics(here::here("Figures", "barkleyMap.png"))
+
+```
+ 
 ## Salmon Lengths and Weights
 
 The chinook salmon lengths and weights are graphed below.
@@ -287,10 +302,13 @@ lengthFreq <- mapdf %>%
   filter(!(is.na(fish_id))) 
 
 ### create function to repeat graphs on different species
-graphSpecies <- function(lengthFreq, thisspecies) {
-
-# select species
-thisdf <- filter(lengthFreq, species == thisspecies)
+graphSpecies <- function(lengthFreq, thisspecies, thissound) {
+  
+  # select this sound and species only
+thislengthFreq <- lengthFreq %>%
+  filter(sound == toupper(thissound)) %>%
+  # select species
+  filter(thislengthFreq, species == thisspecies)
 
 # remove NA weights and lengths
 df.LW <- thisdf %>%
@@ -312,50 +330,39 @@ dffit <- ggplot(df.LW) +
     theme_bw() 
 
 # put both graphs together
-dfbar / dffit
+dfbar / dffit + plot_annotation(title = thissound)
 
 }
 
 ```
 
-### Quatsino Chinook Salmon Lengths and Weights  
+
 ```{r lwQuatsinoCK, fig.height = 3, fig.cap="Lengths and Weights of Quatsino Juvenile Chinook Salmon."}
 
-# select this sound only
-lengthFreqQuatsino <- lengthFreq %>%
-  filter(sound == "QUATSINO")
-
 # create graphs
-QuatsinoCK <- graphSpecies(lengthFreqQuatsino, "CN")
+QuatsinoCK <- graphSpecies(lengthFreq, "CN", "Quatsino")
 QuatsinoCK
 
 ```
 
-### Clayoquot Chinook Salmon Lengths and Weights  
+
 ```{r lwClayoquotCK, fig.height = 3, fig.cap="Lengths and Weights of Clayoquot Chinook Salmon."}
 
-# select this sound only
-lengthFreqClayoquot <- lengthFreq %>%
-  filter(sound == "CLAYOQUOT")
-
 # create graphs
-ClayoquotCK <- graphSpecies(lengthFreqClayoquot, "CN")
+ClayoquotCK <- graphSpecies(lengthFreq, "CN", "Clayoquot")
 ClayoquotCK
 
 ```
 
-### Barkley Chinook Salmon Lengths and Weights  
+
 ```{r lwBarkleyCK, fig.height = 3, fig.cap="Lengths and Weights of Barkley Chinook Salmon."}
 
-# select this sound only
-lengthFreqBarkley <- lengthFreq %>%
-  filter(sound == "BARKLEY")
-
 # create graphs
-BarkleyCK <- graphSpecies(lengthFreqBarkley, "CN")
+BarkleyCK <- graphSpecies(lengthFreq, "CN", "Barkley")
 BarkleyCK
 
 ```
+
 
 ```{r lwClayoquotCo, fig.height = 3, fig.cap="Lengths and Weights of Clayoquot Coho Salmon."}
 
