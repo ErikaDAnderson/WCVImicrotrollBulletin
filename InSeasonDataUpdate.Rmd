@@ -261,12 +261,12 @@ map_ck + map_co
 # allMaps <- sound_vec %>%
 #   map(mapSoundfn, mapdf = mapdf, resolution = "low")
 
-clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
-ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
-quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
-ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
-barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
-ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
+# clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
+# ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
+# quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
+# ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
+# ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
 
 ```
 
@@ -305,7 +305,7 @@ lengthFreq <- mapdf %>%
 graphSpecies <- function(lengthFreq, thisspecies, thissound) {
   
   # select this sound and species only
-thislengthFreq <- lengthFreq %>%
+thisdf <- lengthFreq %>%
   filter(sound == toupper(thissound)) %>%
   # select species
   filter(thislengthFreq, species == thisspecies)
