@@ -308,7 +308,7 @@ graphSpecies <- function(lengthFreq, thisspecies, thissound) {
 thisdf <- lengthFreq %>%
   filter(sound == toupper(thissound)) %>%
   # select species
-  filter(thislengthFreq, species == thisspecies)
+  filter(species == thisspecies)
 
 # remove NA weights and lengths
 df.LW <- thisdf %>%
