@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data update is to share preliminary data in season. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. 
+The purpose of this data update is to share preliminary data in season. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
