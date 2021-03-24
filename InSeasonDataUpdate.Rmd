@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data update is to share preliminary data in season. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data in season from mcirotrolling fishing events targetting juvenile Chinook and Coho Salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -26,6 +26,7 @@ library(bcmaps) # bc basemaps
 library(patchwork) # group plots together
 library(ggpubr) # arrange plots another way
 library(car) # stats
+library(ggplot2) #temporal spread of fishing trips figure
 
 # by default, do not show R code
 knitr::opts_chunk$set(echo = FALSE)
@@ -96,6 +97,7 @@ clinicalSamples <- fish %>% filter(frozen_random_clinical == "clinical") %>% nro
 This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
 
 ```{r dataCollected}
+#JB March 24 2021 added in number of days fished/sound/month
 
 sumfish <- sets %>%
   full_join(., site, by = "site_id") %>%
@@ -103,8 +105,11 @@ sumfish <- sets %>%
   full_join(., fish, by = "fishingset_id") %>%
   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
          sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
   group_by(MONTH_DISPLAY, sound) %>%
-  summarize(ckCatch = sum(species == "CN", na.rm = TRUE),
+  summarize(DaysFished = n_distinct(DAY_DISPLAY),
+            ckCatch = sum(species == "CN", na.rm = TRUE),
             coCatch = sum(species == "CO", na.rm = TRUE),
             numRandom = sum(frozen_random_clinical == "random", na.rm = TRUE),
             numClinical = sum(frozen_random_clinical == "clinical", na.rm = TRUE),
@@ -121,11 +126,72 @@ sumfish <- sets %>%
   select(-MONTH_ORDER)
 
 kableExtra::kable(sumfish,
-                  col.names = c("Month", "Location", "Chinook", "Coho", "Random", "Clinical"),
+                  col.names = c("Month", "Location", "Days Fished", "Chinook", "Coho", "Random", "Clinical"),
                   booktabs = TRUE,
                   caption = "Summary of Salmon Caught and Samples Collected") %>%
   kable_styling() %>%
-  add_header_above(c(" " = 2, "Catch" = 2, "Samples" = 2))
+  add_header_above(c(" " = 3, "Catch" = 2, "Samples" = 2))
+
+
+#Temporal spread of fishing Events Figure broken down by stat week 
+#ignore Jessy workking on
+sumfishsets <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  group_by(MONTH_DISPLAY, sound) %>%
+  select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
+  summarize(unique(DAY_DISPLAY)) %>%
+  mutate(MONTH_ORDER = case_when(
+    MONTH_DISPLAY == "Oct" ~ 1,
+    MONTH_DISPLAY == "Nov" ~ 2,
+    MONTH_DISPLAY == "Dec" ~ 3,
+    MONTH_DISPLAY == "Jan" ~ 4,
+    MONTH_DISPLAY == "Feb" ~ 5,
+    MONTH_DISPLAY == "Mar" ~ 6,
+  )) %>%
+  arrange(MONTH_ORDER) %>%
+  select(-MONTH_ORDER)
+
+statweek = function(dates, format="%d-%m-%Y", ...) {
+  # convert to Date
+  dates = as.Date(dates, format=format, ...) 
+  # get correction for the first week of the year (0 if 1-Jan not a Sunday)
+  firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U")) 
+  output = as.numeric(format(dates, "%U")) + firstweek
+  return(output)
+}
+
+
+sumfishsets <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  mutate(DOY = lubridate::yday(date),
+         sound = str_to_title(sound))%>%
+  mutate(StatWeek = statweek(date),
+         sound = str_to_title(sound))%>% 
+  group_by(DAY_DISPLAY)%>% 
+  summarize(StatWeek = unique(DAY_DISPLAY))#%>%
+#mutate(MONTH_ORDER = case_when(
+# MONTH_DISPLAY == "Oct" ~ 1,
+#MONTH_DISPLAY == "Nov" ~ 2,
+#MONTH_DISPLAY == "Dec" ~ 3,
+#  MONTH_DISPLAY == "Jan" ~ 4,
+#  MONTH_DISPLAY == "Feb" ~ 5,
+#  MONTH_DISPLAY == "Mar" ~ 6,
+#  )) %>%
+# arrange(MONTH_ORDER) %>%
+#  select(-MONTH_ORDER)
+
 
 ```
 
