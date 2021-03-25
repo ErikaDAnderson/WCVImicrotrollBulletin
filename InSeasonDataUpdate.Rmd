@@ -336,16 +336,16 @@ map_ck + map_co
 #allMaps <- sound_vec %>%
 #  map(mapSoundfn, mapdf = mapdf, resolution = "low")
 
-# # run these once with data then comment out to knit since long
-# # create maps individually and save at lower resolution
-# clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
-# ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
-# quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
-# ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
-# barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
-# ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
-# nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
-# ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# run these once with data then comment out to knit since long
+# create maps individually and save at lower resolution
+clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
+ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
+quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
+ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
+barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
+ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
+nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
+ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
 
 ```
 
