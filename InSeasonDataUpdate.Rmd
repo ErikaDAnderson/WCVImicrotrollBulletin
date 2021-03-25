@@ -133,64 +133,66 @@ kableExtra::kable(sumfish,
   add_header_above(c(" " = 3, "Catch" = 2, "Samples" = 2))
 
 
-#Temporal spread of fishing Events Figure broken down by stat week 
-#ignore Jessy workking on
-sumfishsets <- sets %>%
-  full_join(., site, by = "site_id") %>%
-  select(sound, site_id, fishingset_id, date) %>%
-  full_join(., fish, by = "fishingset_id") %>%
-  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-         sound = str_to_title(sound)) %>%
-  mutate(DAY_DISPLAY = day(date),
-         sound = str_to_title(sound)) %>%
-  group_by(MONTH_DISPLAY, sound) %>%
-  select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
-  summarize(unique(DAY_DISPLAY)) %>%
-  mutate(MONTH_ORDER = case_when(
-    MONTH_DISPLAY == "Oct" ~ 1,
-    MONTH_DISPLAY == "Nov" ~ 2,
-    MONTH_DISPLAY == "Dec" ~ 3,
-    MONTH_DISPLAY == "Jan" ~ 4,
-    MONTH_DISPLAY == "Feb" ~ 5,
-    MONTH_DISPLAY == "Mar" ~ 6,
-  )) %>%
-  arrange(MONTH_ORDER) %>%
-  select(-MONTH_ORDER)
-
-statweek = function(dates, format="%d-%m-%Y", ...) {
-  # convert to Date
-  dates = as.Date(dates, format=format, ...) 
-  # get correction for the first week of the year (0 if 1-Jan not a Sunday)
-  firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U")) 
-  output = as.numeric(format(dates, "%U")) + firstweek
-  return(output)
-}
-
-
-sumfishsets <- sets %>%
-  full_join(., site, by = "site_id") %>%
-  select(sound, site_id, fishingset_id, date) %>%
-  full_join(., fish, by = "fishingset_id") %>%
-  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-         sound = str_to_title(sound)) %>%
-  mutate(DAY_DISPLAY = day(date),
-         sound = str_to_title(sound)) %>%
-  mutate(DOY = lubridate::yday(date),
-         sound = str_to_title(sound))%>%
-  mutate(StatWeek = statweek(date),
-         sound = str_to_title(sound))%>% 
-  group_by(DAY_DISPLAY)%>% 
-  summarize(StatWeek = unique(DAY_DISPLAY))#%>%
-#mutate(MONTH_ORDER = case_when(
-# MONTH_DISPLAY == "Oct" ~ 1,
-#MONTH_DISPLAY == "Nov" ~ 2,
-#MONTH_DISPLAY == "Dec" ~ 3,
-#  MONTH_DISPLAY == "Jan" ~ 4,
-#  MONTH_DISPLAY == "Feb" ~ 5,
-#  MONTH_DISPLAY == "Mar" ~ 6,
-#  )) %>%
-# arrange(MONTH_ORDER) %>%
-#  select(-MONTH_ORDER)
+# #Temporal spread of fishing Events Figure broken down by stat week 
+# #ignore Jessy workking on
+# sumfishsets <- sets %>%
+#   full_join(., site, by = "site_id") %>%
+#   select(sound, site_id, fishingset_id, date) %>%
+#   full_join(., fish, by = "fishingset_id") %>%
+#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+#          sound = str_to_title(sound)) %>%
+#   mutate(DAY_DISPLAY = day(date),
+#          sound = str_to_title(sound)) %>%
+#   group_by(MONTH_DISPLAY, sound) %>%
+#   select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
+#   summarize(unique(DAY_DISPLAY),
+#             .groups = "drop") %>%
+#   mutate(MONTH_ORDER = case_when(
+#     MONTH_DISPLAY == "Oct" ~ 1,
+#     MONTH_DISPLAY == "Nov" ~ 2,
+#     MONTH_DISPLAY == "Dec" ~ 3,
+#     MONTH_DISPLAY == "Jan" ~ 4,
+#     MONTH_DISPLAY == "Feb" ~ 5,
+#     MONTH_DISPLAY == "Mar" ~ 6,
+#   )) %>%
+#   arrange(MONTH_ORDER) %>%
+#   select(-MONTH_ORDER)
+# 
+# statweek = function(dates, format="%d-%m-%Y", ...) {
+#   # convert to Date
+#   dates = as.Date(dates, format=format, ...) 
+#   # get correction for the first week of the year (0 if 1-Jan not a Sunday)
+#   firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U")) 
+#   output = as.numeric(format(dates, "%U")) + firstweek
+#   return(output)
+# }
+# 
+# 
+# sumfishsets <- sets %>%
+#   full_join(., site, by = "site_id") %>%
+#   select(sound, site_id, fishingset_id, date) %>%
+#   full_join(., fish, by = "fishingset_id") %>%
+#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+#          sound = str_to_title(sound)) %>%
+#   mutate(DAY_DISPLAY = day(date),
+#          sound = str_to_title(sound)) %>%
+#   mutate(DOY = lubridate::yday(date),
+#          sound = str_to_title(sound))%>%
+#   mutate(StatWeek = statweek(date),
+#          sound = str_to_title(sound))%>% 
+#   group_by(DAY_DISPLAY) %>% 
+#   summarize(StatWeek = unique(DAY_DISPLAY),
+#             .groups = "drop")#%>%
+# #mutate(MONTH_ORDER = case_when(
+# # MONTH_DISPLAY == "Oct" ~ 1,
+# #MONTH_DISPLAY == "Nov" ~ 2,
+# #MONTH_DISPLAY == "Dec" ~ 3,
+# #  MONTH_DISPLAY == "Jan" ~ 4,
+# #  MONTH_DISPLAY == "Feb" ~ 5,
+# #  MONTH_DISPLAY == "Mar" ~ 6,
+# #  )) %>%
+# # arrange(MONTH_ORDER) %>%
+# #  select(-MONTH_ORDER)
 
 
 ```
@@ -242,6 +244,13 @@ if (soundName == "BARKLEY") {
   maxLat <- 49.1
   minLon <- -125.5
   maxLon <- -124.9
+}
+
+if (soundName == "NOOTKA") {
+  minLat <- 49.5
+  maxLat <- 49.85
+  minLon <- -126.8
+  maxLon <- -126.0
 }
 
 # df for each species
@@ -322,17 +331,21 @@ map_ck + map_co
 
 }
 
-## run through all sounds in dataset
+## future addition to run through all sounds in dataset
 #sound_vec <- unique(site$sound)
-# allMaps <- sound_vec %>%
-#   map(mapSoundfn, mapdf = mapdf, resolution = "low")
+#allMaps <- sound_vec %>%
+#  map(mapSoundfn, mapdf = mapdf, resolution = "low")
 
+# # run these once with data then comment out to knit since long
+# # create maps individually and save at lower resolution
 # clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
 # ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
 # quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
 # ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
 # barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
 # ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
+# nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
+# ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
 
 ```
 
@@ -340,6 +353,13 @@ map_ck + map_co
 ```{r quatsinoMap, fig.align = 'center', fig.cap = "Quatsino Sound Catch and Fishing Effort"}
 
 knitr::include_graphics(here::here("Figures", "quatsinoMap.png"))
+
+```
+
+### Nootka Sound  
+```{r nootkaMap, fig.align = 'center', fig.cap = "Nootka Sound Catch and Fishing Effort"}
+
+knitr::include_graphics(here::here("Figures", "nootkaMap.png"))
 
 ```
 
@@ -408,6 +428,15 @@ dfbar / dffit + plot_annotation(title = thissound)
 # create graphs
 QuatsinoCK <- graphSpecies(lengthFreq, "CN", "Quatsino")
 QuatsinoCK
+
+```
+
+
+```{r lwNootkaCK, fig.height = 3, fig.cap="Lengths and Weights of Nootka Juvenile Chinook Salmon."}
+
+# create graphs
+NootkaCK <- graphSpecies(lengthFreq, "CN", "Nootka")
+NootkaCK
 
 ```
 
