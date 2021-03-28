@@ -36,27 +36,27 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r loadData}
 
 # load data from all excel files in Data folder
-site_orig <- list.files(path = "./Data/",
+site_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "01 SITE")) 
 
-sets_orig <- list.files(path = "./Data/",
+sets_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "02 FISHING SETS")) 
 
-ocean_orig <- list.files(path = "./Data/",
+ocean_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
                          pattern = "*.xlsx",
                          full.names = T) %>%
   map_df(~read_excel(., sheet = "03 OCEANOGRAPHIC DATA"))
 
-fish_orig <- list.files(path = "./Data/",
+fish_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "04 FISH"))
 
-stomach_orig <- list.files(path = "./Data/",
+stomach_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
                            pattern = "*.xlsx",
                            full.names = T) %>%
   map_df(~read_excel(., sheet = "05 STOMACH CONTENTS"))
@@ -133,68 +133,143 @@ kableExtra::kable(sumfish,
   add_header_above(c(" " = 3, "Catch" = 2, "Samples" = 2))
 
 
-# #Temporal spread of fishing Events Figure broken down by stat week 
-# #ignore Jessy workking on
-# sumfishsets <- sets %>%
-#   full_join(., site, by = "site_id") %>%
-#   select(sound, site_id, fishingset_id, date) %>%
-#   full_join(., fish, by = "fishingset_id") %>%
-#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DAY_DISPLAY = day(date),
-#          sound = str_to_title(sound)) %>%
-#   group_by(MONTH_DISPLAY, sound) %>%
-#   select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
-#   summarize(unique(DAY_DISPLAY),
-#             .groups = "drop") %>%
-#   mutate(MONTH_ORDER = case_when(
-#     MONTH_DISPLAY == "Oct" ~ 1,
-#     MONTH_DISPLAY == "Nov" ~ 2,
-#     MONTH_DISPLAY == "Dec" ~ 3,
-#     MONTH_DISPLAY == "Jan" ~ 4,
-#     MONTH_DISPLAY == "Feb" ~ 5,
-#     MONTH_DISPLAY == "Mar" ~ 6,
-#   )) %>%
-#   arrange(MONTH_ORDER) %>%
-#   select(-MONTH_ORDER)
-# 
-# statweek = function(dates, format="%d-%m-%Y", ...) {
-#   # convert to Date
-#   dates = as.Date(dates, format=format, ...) 
-#   # get correction for the first week of the year (0 if 1-Jan not a Sunday)
-#   firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U")) 
-#   output = as.numeric(format(dates, "%U")) + firstweek
-#   return(output)
-# }
-# 
-# 
-# sumfishsets <- sets %>%
-#   full_join(., site, by = "site_id") %>%
-#   select(sound, site_id, fishingset_id, date) %>%
-#   full_join(., fish, by = "fishingset_id") %>%
-#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DAY_DISPLAY = day(date),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DOY = lubridate::yday(date),
-#          sound = str_to_title(sound))%>%
-#   mutate(StatWeek = statweek(date),
-#          sound = str_to_title(sound))%>% 
-#   group_by(DAY_DISPLAY) %>% 
-#   summarize(StatWeek = unique(DAY_DISPLAY),
-#             .groups = "drop")#%>%
-# #mutate(MONTH_ORDER = case_when(
-# # MONTH_DISPLAY == "Oct" ~ 1,
-# #MONTH_DISPLAY == "Nov" ~ 2,
-# #MONTH_DISPLAY == "Dec" ~ 3,
-# #  MONTH_DISPLAY == "Jan" ~ 4,
-# #  MONTH_DISPLAY == "Feb" ~ 5,
-# #  MONTH_DISPLAY == "Mar" ~ 6,
-# #  )) %>%
-# # arrange(MONTH_ORDER) %>%
-# #  select(-MONTH_ORDER)
+#Temporal spread of fishing Events Figure broken down by stat week
+#Jessy Working on
+sumfishsets <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  group_by(MONTH_DISPLAY, sound) %>%
+  select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
+  summarize(unique(DAY_DISPLAY),
+            .groups = "drop") %>%
+  mutate(MONTH_ORDER = case_when(
+    MONTH_DISPLAY == "Oct" ~ 1,
+    MONTH_DISPLAY == "Nov" ~ 2,
+    MONTH_DISPLAY == "Dec" ~ 3,
+    MONTH_DISPLAY == "Jan" ~ 4,
+    MONTH_DISPLAY == "Feb" ~ 5,
+    MONTH_DISPLAY == "Mar" ~ 6,
+  )) %>%
+  arrange(MONTH_ORDER) %>%
+  select(-MONTH_ORDER)
+
+View(sumfishsets)
+
+statweek = function(dates, format="%d-%m-%Y", ...) {
+  # convert to Date
+  dates = as.Date(dates, format=format, ...)
+  # get correction for the first week of the year (0 if 1-Jan not a Sunday)
+  firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U"))
+  output = as.numeric(format(dates, "%U")) + firstweek
+  return(output)
+}
+
+#fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
+TemporalPlot <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date, start_time) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  mutate(DOY = lubridate::yday(date),
+         sound = str_to_title(sound)) %>%
+  mutate(StatWeek = statweek(date),
+         sound = str_to_title(sound)) %>%
+mutate(DayTime = lubridate::hour(start_time),
+         sound = str_to_title(sound)) %>%
+  mutate(BinaryTime = case_when(
+    DayTime %in% 0:11 ~ "AM",
+    DayTime %in% 12:23 ~ "PM"
+    )) %>%
+  replace_na(list(BinaryTime="Unknown"))%>%
+  distinct(sound, date, MONTH_DISPLAY, DAY_DISPLAY, StatWeek, DOY, BinaryTime)
+View(TemporalPlot)
+
+install.packages("fuzzyjoin")
+library(fuzzyjoin)
+TemporalPlot %>%
+fuzzy_left_join(TemporalPlot, StatWeekLU, 
+                by=c("date"="DateStart", "date"="DateEnd"),
+                match_fun=list(`>=`, `<=`)) %>% 
+  select(DOY, StatWeekLU)
+
+Result <- cbind(TemporalPlot, StatWeek=sapply(1:nrow(TemporalPlot),function(x) StatWeekLU$beginning[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]),
+            "ending"=sapply(1:nrow(data2),function(x) data2$ending[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]),
+            "class"=sapply(1:nrow(data2),function(x) data2$class[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]))
+ 
+
+StatWeekLU <- read.csv("C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/StatWeekLU.2.csv")
+View(StatWeekLU)
+
+View(TemporalPlot)
+
+#March 27th make a lookup table for the StatWeeks and import here, cross lookup
+
+#this needs to be automated, add in blank rows based on number of rows avaialble for each statweek and time rep x for 4-unique(Statweek)
+require(reprex)
+library(reprex)
+
+TemporalPlot2 <- TemporalPlot %>%
+  #modify_if(unique(TemporalPlot$StatWeek <4)) %>%
+ # add_row(sound="1", MONTH_DISPLAY="2", DAY_DISPLAY=4, StatWeek=6, BinaryTime="9")
+  group_by(sound, MONTH_DISPLAY) %>%
+summarize(reps = 4 - n_distinct(StatWeek)) 
+View(TemporalPlot2)
+
+install.packages("SwimmeR")
+library(SwimmeR)
+install.packages("sqldf")
+library(sqldf)
+
+TemporalPlot2.1 <- uncount(TemporalPlot2, reps) %>% #create the dataframe needed to fill blank rows
+mutate(IDforStatWeek = row_number())
+View(TemporalPlot2.1)
+
+ TemporalPlot3 <- TemporalPlot %>%
+ add_row(sound=TemporalPlot2.1$sound, MONTH_DISPLAY=TemporalPlot2.1$MONTH_DISPLAY, DAY_DISPLAY=NA, StatWeek=TemporalPlot2.1$IDforStatWeek, BinaryTime=NA) 
+ #this now has the blank rows for plotting
+ 
+ 
+ 
+ TemporalPlot4 <- TemporalPlot3 %>%
+     group_by(sound, MONTH_DISPLAY, BinaryTime, StatWeek) %>%
+   summarize(fishingdays=length(StatWeek))
 
 
+ggplot(TemporalPlot4, aes(x=MONTH_DISPLAY, y=fishingdays, fill=interaction(sound,BinaryTime)))+
+geom_bar(stat="identity")
+
+  fill=interaction(TrialType,Group)
+  View(TemporalPlot2)
+  
+View(TemporalPlot2.1)
+View(TemporalPlot2)
+  complete(StatWeek, nesting(sound)) %>%
+           arrange(sound)
+         
+         
+length(TemporalPlot)
+View(TemporalPlot2)
+
+ plot <- data.frame(
+   sound = rep(c("Barkley", "Clayoquot", "Nootka", "Quatsino"),4),
+   Weeks = rep(1:4, 64))#,
+   Time = rep(c("AM","PM"), 1))
+
+View(ocean)
+
+View(TemporalPlot2)
+
+#data %>%
+  complete(day, nesting(name, id)) %>%
+  arrange(name)
 ```
 
   
