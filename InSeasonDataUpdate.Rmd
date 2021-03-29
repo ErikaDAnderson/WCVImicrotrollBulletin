@@ -40,32 +40,32 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r loadData}
 
 # load data from all excel files in Data folder
-site_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+site_orig <- list.files(path = "./Data/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "01 SITE")) 
 
-sets_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+sets_orig <- list.files(path = "./Data/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "02 FISHING SETS")) 
 
-ocean_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+ocean_orig <- list.files(path = "./Data/",
                          pattern = "*.xlsx",
                          full.names = T) %>%
   map_df(~read_excel(., sheet = "03 OCEANOGRAPHIC DATA"))
 
-fish_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+fish_orig <- list.files(path = "./Data/",
                         pattern = "*.xlsx", 
                         full.names = T) %>% 
   map_df(~read_excel(., sheet = "04 FISH"))
 
-stomach_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+stomach_orig <- list.files(path = "./Data/",
                            pattern = "*.xlsx",
                            full.names = T) %>%
   map_df(~read_excel(., sheet = "05 STOMACH CONTENTS"))
 
-stomachLU_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+stomachLU_orig <- list.files(path = "./Data/",
                            pattern = "*.xlsx",
                            full.names = T) %>%
   map_df(~read_excel(., sheet = "Lookup lists"))
@@ -170,7 +170,7 @@ mutate(DayTime = lubridate::hour(start_time),
   replace_na(list(BinaryTime="Unknown"))%>%
   distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
 
-StatWeekLU <- read.csv("C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/Lookups/StatWeekLU.csv")
+StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
 StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
 
 #make sure dates are in the correct format
@@ -179,13 +179,14 @@ StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
 StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
 
 TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
-                by=c("date"="DateStart", "date"="DateEnd"),
-                match_fun=list(`>=`, `<=`)) %>% 
+                by = c("date"="DateStart", "date"="DateEnd"),
+                match_fun = list(`>=`, `<=`)) %>% 
   select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
 
 statweekspermonth <- StatWeekLU %>%
   group_by(Month) %>%
-  summarize(totalstatweeks=n_distinct(StatWeekLU))
+  summarize(totalstatweeks=n_distinct(StatWeekLU),
+            .groups = "drop")
 
 
 #table for how many blank rows that need to be added 
@@ -194,10 +195,12 @@ statweekspermonth <- StatWeekLU %>%
 #recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
 TemporalPlot2 <- TemporalPlot1 %>%
   group_by(sound, Month) %>%
-  summarize(n=n_distinct(StatWeekLU)) %>%
+  summarize(n = n_distinct(StatWeekLU),
+            .groups = "drop") %>%
 left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
    group_by(sound, Month) %>%
-summarize(missingweeks = totalstatweeks - n)
+summarize(missingweeks = totalstatweeks - n,
+          .groups = "drop")
 
 #need to automate this still, need to work on
 TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
@@ -216,20 +219,20 @@ add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", 
 
  #Figures of the number of fishing days across sounds/year across statistical weeks
 P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-geom_bar(stat="identity")+
-  xlab("Statistical Week")+
-  ylab("Days Fished")+
-  ggtitle("2020 Fishing Days")+
+geom_bar(stat="identity") +
+  xlab("Statistical Week") +
+  ylab("Days Fished") +
+  ggtitle("2020 Fishing Days") +
   scale_fill_manual(values = "lightblue3")
 
 
-P2<-ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-geom_bar(stat="identity")+
-  xlab("Statistical Week")+
+P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat = "identity") +
+  xlab("Statistical Week") +
    scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-    ylab("Days Fished")+
-  ggtitle("2021 Fishing Days")+
-  scale_fill_manual(values=c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
+    ylab("Days Fished") +
+  ggtitle("2021 Fishing Days") +
+  scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
 
  
 #coloured by AM vs PM fishing days
@@ -251,10 +254,10 @@ geom_bar(stat="identity")+
   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
 
 
-plot_grid(P1+theme(legend.position = "none")
-          , P2+theme(legend.title = element_blank())
-          , P3+theme(legend.position="none" )
-          , P4+theme(legend.title = element_blank())) 
+plot_grid(P1 + theme(legend.position = "none")
+          , P2 + theme(legend.title = element_blank())
+          , P3 + theme(legend.position = "none" )
+          , P4 + theme(legend.title = element_blank())) 
          
 
 
@@ -400,16 +403,19 @@ map_ck + map_co
 #allMaps <- sound_vec %>%
 #  map(mapSoundfn, mapdf = mapdf, resolution = "low")
 
+# create Figure folder if it doesn't exist yet
+if (!dir.exists("Figures")) dir.create("Figures")
+
 # run these once with data then comment out to knit since long
 # create maps individually and save at lower resolution
-clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
-ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
-quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
-ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
-barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
-ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
-nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
-ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
+# ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
+# quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
+# ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
+# ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
+# nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
+# ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
 
 ```
 
@@ -538,31 +544,40 @@ Preliminary informaiton on prey items identified in sample stomachs are shown be
 
 #Figure of Stomach content across sounds and fishing trips 
 stomach.1 <- stomach %>%
- left_join(., stomachLU, by = c("prey_item" = "prey_code")) %>%
-select(fish_id, prey_item, prey_no, prey_description) %>%
+  left_join(., stomachLU, by = c("prey_item" = "prey_code")) %>%
+  select(fish_id, prey_item, prey_no, prey_description) %>%
   left_join(., fish, by = "fish_id") %>%
-select(fish_id, fishingset_id, species, prey_item, prey_no, prey_description) %>%
+  select(fish_id, fishingset_id, species, prey_item, prey_no, prey_description) %>%
   left_join(., sets, by = "fishingset_id") %>%
-select(fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description) %>%
-left_join(., site, by = "site_id") %>%
-select(sound, date, fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description)%>%
-   mutate(Month = month(date, label = TRUE, abbr = TRUE),
+  select(fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description) %>%
+  left_join(., site, by = "site_id") %>%
+  select(sound, date, fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description)%>%
+  mutate(Month = month(date, label = TRUE, abbr = TRUE),
          sound = str_to_title(sound)) %>%
-mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
-mutate(CountPrey = 1) # making a column to plot counts, this will include prey that appear in multiple fish
+  mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
+  mutate(CountPrey = 1) # making a column to plot counts, this will include prey that appear in multiple fish
 #n_distinct(stomach.1$fish_id) #19 fish represented here
 
 #could organize this by stat week and show prey items across weeks - summarizing by stat week is not very intuitive to me
 #since some stat weeks include days from two months
 
+
+```
+
+
+```{r stomachClay, fig.height = 3, fig.cap="Prey items within Clayoquot juvenile chinook salmon."}
+
+# create graphs
 #prey items from fish samples in Clayoquot across sampling months
 #note that for showing this into the future I would rather fill by sound/species (interaction) and facet wrap or grid by month
-ggplot(stomach.1, aes(x=prey_description, y=CountPrey, fill=Month))+
-geom_bar(stat="identity") +
-  xlab("Prey item")+
-    ylab("Number of fish")+
-  ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)")+
-  scale_fill_manual(values = c("Nov"="gray48", "Dec"="gray85"))
+stomachClayplot <- ggplot(stomach.1, aes(x = prey_description, y = CountPrey, fill = Month)) +
+  geom_bar(stat = "identity") +
+  xlab("Prey item") +
+  ylab("Number of fish") +
+  ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)") +
+  scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
+
+stomachClayplot
 
 ```
 
