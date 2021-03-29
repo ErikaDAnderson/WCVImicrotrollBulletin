@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data in season from mcirotrolling fishing events targetting juvenile Chinook and Coho Salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data in season from mcirotrolling fishing events targetting juvenile chinook and coho salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -222,7 +222,7 @@ P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, 
 geom_bar(stat="identity") +
   xlab("Statistical Week") +
   ylab("Days Fished") +
-  ggtitle("2020 Fishing Days") +
+  ggtitle("2020") +
   scale_fill_manual(values = "lightblue3")
 
 
@@ -231,7 +231,7 @@ geom_bar(stat = "identity") +
   xlab("Statistical Week") +
    scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
     ylab("Days Fished") +
-  ggtitle("2021 Fishing Days") +
+  ggtitle("2021") +
   scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
 
  
@@ -241,7 +241,7 @@ P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWee
 geom_bar(stat="identity")+
   xlab("Statistical Week")+
     ylab("Days Fished")+
-  ggtitle("2020 Fishing Days")+
+  ggtitle("2020")+
    scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
 
 
@@ -250,24 +250,38 @@ geom_bar(stat="identity")+
   xlab("Statistical Week")+
   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
     ylab("Days Fished")+
-  ggtitle("2021 Fishing Days")+
+  ggtitle("2021")+
   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
 
 
-plot_grid(P1 + theme(legend.position = "none")
-          , P2 + theme(legend.title = element_blank())
-          , P3 + theme(legend.position = "none" )
-          , P4 + theme(legend.title = element_blank())) 
-         
+P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
+          , P2 + theme(legend.position = "none"))
 
+P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
+          , P4 + theme(legend.position = "none" ))
 
+   legendP1P2 <- get_legend(P2 + 
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom", legend.title = element_blank()))  
+   
+   legendP3P4 <- get_legend(P4 + 
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom",legend.title = element_blank()))   
+
+  
+  DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
+  FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
+  
+  DaysFished
+  
+  FishingTime
   
 ```
 
   
 ## Maps
 
-There are two maps per sound showing juvenile chinook and coho salmon catch. The circles are proportional to the amount of catch i.e. the more fish caught, the bigger the circles.  The black crosses represents fishing events with no catch.  
+There are two maps per sound showing juvenile chinook and coho salmon catch per unit effort (salmon/hook) per fishing set. The circles are proportional to the amount of catch i.e. the more fish caught, the bigger the circles.  The black crosses represents fishing events with no catch.  
 
 ```{r maps, message = FALSE}
 
