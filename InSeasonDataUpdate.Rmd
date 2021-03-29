@@ -27,6 +27,10 @@ library(patchwork) # group plots together
 library(ggpubr) # arrange plots another way
 library(car) # stats
 library(ggplot2) #temporal spread of fishing trips figure
+library(cowplot) #figure arrangement
+library(fuzzyjoin)
+library(reprex)
+library(SwimmeR)
 
 # by default, do not show R code
 knitr::opts_chunk$set(echo = FALSE)
@@ -61,6 +65,11 @@ stomach_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reco
                            full.names = T) %>%
   map_df(~read_excel(., sheet = "05 STOMACH CONTENTS"))
 
+stomachLU_orig <- list.files(path = "C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/",
+                           pattern = "*.xlsx",
+                           full.names = T) %>%
+  map_df(~read_excel(., sheet = "Lookup lists"))
+
 # tidy data
 site <- site_orig %>%
     # remove extra rows generated from NAs
@@ -78,6 +87,8 @@ ocean <- ocean_orig %>%
 fish <- fish_orig
 
 stomach <- stomach_orig
+
+stomachLU <- stomachLU_orig
 
 # variables for text
 overallStartDate <- format(min(site$date, na.rm = TRUE), "%b. %d, %Y")
@@ -134,40 +145,7 @@ kableExtra::kable(sumfish,
 
 
 #Temporal spread of fishing Events Figure broken down by stat week
-#Jessy Working on
-sumfishsets <- sets %>%
-  full_join(., site, by = "site_id") %>%
-  select(sound, site_id, fishingset_id, date) %>%
-  full_join(., fish, by = "fishingset_id") %>%
-  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-         sound = str_to_title(sound)) %>%
-  mutate(DAY_DISPLAY = day(date),
-         sound = str_to_title(sound)) %>%
-  group_by(MONTH_DISPLAY, sound) %>%
-  select(MONTH_DISPLAY, sound, DAY_DISPLAY) %>%
-  summarize(unique(DAY_DISPLAY),
-            .groups = "drop") %>%
-  mutate(MONTH_ORDER = case_when(
-    MONTH_DISPLAY == "Oct" ~ 1,
-    MONTH_DISPLAY == "Nov" ~ 2,
-    MONTH_DISPLAY == "Dec" ~ 3,
-    MONTH_DISPLAY == "Jan" ~ 4,
-    MONTH_DISPLAY == "Feb" ~ 5,
-    MONTH_DISPLAY == "Mar" ~ 6,
-  )) %>%
-  arrange(MONTH_ORDER) %>%
-  select(-MONTH_ORDER)
-
-View(sumfishsets)
-
-statweek = function(dates, format="%d-%m-%Y", ...) {
-  # convert to Date
-  dates = as.Date(dates, format=format, ...)
-  # get correction for the first week of the year (0 if 1-Jan not a Sunday)
-  firstweek = 1 - as.numeric(format(as.Date(cut(dates, "year")), "%U"))
-  output = as.numeric(format(dates, "%U")) + firstweek
-  return(output)
-}
+#JB working on 
 
 #fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
 TemporalPlot <- sets %>%
@@ -178,9 +156,9 @@ TemporalPlot <- sets %>%
          sound = str_to_title(sound)) %>%
   mutate(DAY_DISPLAY = day(date),
          sound = str_to_title(sound)) %>%
-  mutate(DOY = lubridate::yday(date),
+  mutate(Year = lubridate::year(date),
          sound = str_to_title(sound)) %>%
-  mutate(StatWeek = statweek(date),
+  mutate(DOY = lubridate::yday(date),
          sound = str_to_title(sound)) %>%
 mutate(DayTime = lubridate::hour(start_time),
          sound = str_to_title(sound)) %>%
@@ -188,88 +166,99 @@ mutate(DayTime = lubridate::hour(start_time),
     DayTime %in% 0:11 ~ "AM",
     DayTime %in% 12:23 ~ "PM"
     )) %>%
+  add_column(DaysFished = 1)%>%
   replace_na(list(BinaryTime="Unknown"))%>%
-  distinct(sound, date, MONTH_DISPLAY, DAY_DISPLAY, StatWeek, DOY, BinaryTime)
-View(TemporalPlot)
+  distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
 
-install.packages("fuzzyjoin")
-library(fuzzyjoin)
-TemporalPlot %>%
-fuzzy_left_join(TemporalPlot, StatWeekLU, 
+StatWeekLU <- read.csv("C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/Lookups/StatWeekLU.csv")
+StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
+
+#make sure dates are in the correct format
+#have to be in yyyy/mm/dd for formatting with lubridate to work
+StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
+StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
+
+TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
                 by=c("date"="DateStart", "date"="DateEnd"),
                 match_fun=list(`>=`, `<=`)) %>% 
-  select(DOY, StatWeekLU)
+  select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
 
-Result <- cbind(TemporalPlot, StatWeek=sapply(1:nrow(TemporalPlot),function(x) StatWeekLU$beginning[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]),
-            "ending"=sapply(1:nrow(data2),function(x) data2$ending[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]),
-            "class"=sapply(1:nrow(data2),function(x) data2$class[data2$beginning[x]<data1$date & data2$ending[x]>data1$date]))
- 
+statweekspermonth <- StatWeekLU %>%
+  group_by(Month) %>%
+  summarize(totalstatweeks=n_distinct(StatWeekLU))
 
-StatWeekLU <- read.csv("C:/Users/BOKVISTJ/Documents/Five Nations Reconciliation Budget/5N03 Juvenile Salmon/Juvenile CN Micro-trolling/WCVImicrotrollBulletin/StatWeekLU.2.csv")
-View(StatWeekLU)
 
-View(TemporalPlot)
+#table for how many blank rows that need to be added 
+#this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
+#Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
+#recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
+TemporalPlot2 <- TemporalPlot1 %>%
+  group_by(sound, Month) %>%
+  summarize(n=n_distinct(StatWeekLU)) %>%
+left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
+   group_by(sound, Month) %>%
+summarize(missingweeks = totalstatweeks - n)
 
-#March 27th make a lookup table for the StatWeeks and import here, cross lookup
+#need to automate this still, need to work on
+TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
+add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", "11", "12", "13", "15", "32", "33", "34", "111", "112", "113", "21", "22", "11", "12", "13", "15", "11", "12", "13", "14", "32", "33", "34"))%>%
+  add_column(Year=c(rep(2021, 3), rep(2020,4), rep(2021, 9), rep(2020, 3), rep(2021, 13)))
 
-#this needs to be automated, add in blank rows based on number of rows avaialble for each statweek and time rep x for 4-unique(Statweek)
-require(reprex)
-library(reprex)
 
-TemporalPlot2 <- TemporalPlot %>%
-  #modify_if(unique(TemporalPlot$StatWeek <4)) %>%
- # add_row(sound="1", MONTH_DISPLAY="2", DAY_DISPLAY=4, StatWeek=6, BinaryTime="9")
-  group_by(sound, MONTH_DISPLAY) %>%
-summarize(reps = 4 - n_distinct(StatWeek)) 
-View(TemporalPlot2)
-
-install.packages("SwimmeR")
-library(SwimmeR)
-install.packages("sqldf")
-library(sqldf)
-
-TemporalPlot2.1 <- uncount(TemporalPlot2, reps) %>% #create the dataframe needed to fill blank rows
-mutate(IDforStatWeek = row_number())
-View(TemporalPlot2.1)
-
- TemporalPlot3 <- TemporalPlot %>%
- add_row(sound=TemporalPlot2.1$sound, MONTH_DISPLAY=TemporalPlot2.1$MONTH_DISPLAY, DAY_DISPLAY=NA, StatWeek=TemporalPlot2.1$IDforStatWeek, BinaryTime=NA) 
+ TemporalPlot3 <- TemporalPlot1 %>%
+   add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0) 
  #this now has the blank rows for plotting
  
- 
- 
  TemporalPlot4 <- TemporalPlot3 %>%
-     group_by(sound, MONTH_DISPLAY, BinaryTime, StatWeek) %>%
-   summarize(fishingdays=length(StatWeek))
+  group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime) 
+ TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
 
 
-ggplot(TemporalPlot4, aes(x=MONTH_DISPLAY, y=fishingdays, fill=interaction(sound,BinaryTime)))+
-geom_bar(stat="identity")
+ #Figures of the number of fishing days across sounds/year across statistical weeks
+P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+  ylab("Days Fished")+
+  ggtitle("2020 Fishing Days")+
+  scale_fill_manual(values = "lightblue3")
 
-  fill=interaction(TrialType,Group)
-  View(TemporalPlot2)
+
+P2<-ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished")+
+  ggtitle("2021 Fishing Days")+
+  scale_fill_manual(values=c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
+
+ 
+#coloured by AM vs PM fishing days
+#I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week 
+P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+    ylab("Days Fished")+
+  ggtitle("2020 Fishing Days")+
+   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
+
+
+P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+  scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished")+
+  ggtitle("2021 Fishing Days")+
+  scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
+
+
+plot_grid(P1+theme(legend.position = "none")
+          , P2+theme(legend.title = element_blank())
+          , P3+theme(legend.position="none" )
+          , P4+theme(legend.title = element_blank())) 
+         
+
+
   
-View(TemporalPlot2.1)
-View(TemporalPlot2)
-  complete(StatWeek, nesting(sound)) %>%
-           arrange(sound)
-         
-         
-length(TemporalPlot)
-View(TemporalPlot2)
-
- plot <- data.frame(
-   sound = rep(c("Barkley", "Clayoquot", "Nootka", "Quatsino"),4),
-   Weeks = rep(1:4, 64))#,
-   Time = rep(c("AM","PM"), 1))
-
-View(ocean)
-
-View(TemporalPlot2)
-
-#data %>%
-  complete(day, nesting(name, id)) %>%
-  arrange(name)
 ```
 
   
@@ -454,7 +443,7 @@ knitr::include_graphics(here::here("Figures", "barkleyMap.png"))
  
 ## Salmon Lengths and Weights
 
-The chinook salmon lengths and weights are graphed below.
+The Chinook Salmon lengths and weights are graphed below.
 
 ```{r forkfn}
 
@@ -542,7 +531,40 @@ BarkleyCK
 
 ```
 
+## Stomach Content Analysis
+
+Preliminary informaiton on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
+```{r Stomach Content."}
+
+#Figure of Stomach content across sounds and fishing trips 
+stomach.1 <- stomach %>%
+ left_join(., stomachLU, by = c("prey_item" = "prey_code")) %>%
+select(fish_id, prey_item, prey_no, prey_description) %>%
+  left_join(., fish, by = "fish_id") %>%
+select(fish_id, fishingset_id, species, prey_item, prey_no, prey_description) %>%
+  left_join(., sets, by = "fishingset_id") %>%
+select(fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description) %>%
+left_join(., site, by = "site_id") %>%
+select(sound, date, fish_id, site_id, fishingset_id, species,prey_item, prey_no, prey_description)%>%
+   mutate(Month = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
+mutate(CountPrey = 1) # making a column to plot counts, this will include prey that appear in multiple fish
+#n_distinct(stomach.1$fish_id) #19 fish represented here
+
+#could organize this by stat week and show prey items across weeks - summarizing by stat week is not very intuitive to me
+#since some stat weeks include days from two months
+
+#prey items from fish samples in Clayoquot across sampling months
+#note that for showing this into the future I would rather fill by sound/species (interaction) and facet wrap or grid by month
+ggplot(stomach.1, aes(x=prey_description, y=CountPrey, fill=Month))+
+geom_bar(stat="identity") +
+  xlab("Prey item")+
+    ylab("Number of fish")+
+  ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)")+
+  scale_fill_manual(values = c("Nov"="gray48", "Dec"="gray85"))
+
+```
+
 ## Other Data
 The `r randomSamples + clinicalSamples` samples transported to the Pacific Biological Station will be processed for infectious agents, stressors and diseases using FitChips; stomachs contents will be identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); and energy density will be measured. 
-
-
