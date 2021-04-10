@@ -692,7 +692,7 @@ stomachClayplot
 ```{r photo, out.width="50%", fig.align = 'center', fig.cap = "Giant Pacific Octopus larvae  found inside a juvenile chinook salmon stomach caught in Bawden Bay in Clayoquot Sound on Febraruy 27, 2021 (photo credit L. Fernandez)."}
 
 # load image
-knitr::include_graphics("Data/Pacific Octopus Paralarva.jpg")
+knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralarva.jpg"))
 
 ```
 
