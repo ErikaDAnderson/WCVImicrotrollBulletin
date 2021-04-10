@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data in season from mcirotrolling fishing events targetting juvenile chinook and coho salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targetting juvenile chinook and coho salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -39,36 +39,23 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r loadData}
 
+# create function to load data from excel file(s)
+loadExcelFn <- function(sheetName) {
+  
+  list.files(path = "./Data/",
+                        pattern = "*.xlsx", 
+                        full.names = T) %>% 
+  map_df(~read_excel(., sheet = sheetName)) 
+  
+}
+
 # load data from all excel files in Data folder
-site_orig <- list.files(path = "./Data/",
-                        pattern = "*.xlsx", 
-                        full.names = T) %>% 
-  map_df(~read_excel(., sheet = "01 SITE")) 
-
-sets_orig <- list.files(path = "./Data/",
-                        pattern = "*.xlsx", 
-                        full.names = T) %>% 
-  map_df(~read_excel(., sheet = "02 FISHING SETS")) 
-
-ocean_orig <- list.files(path = "./Data/",
-                         pattern = "*.xlsx",
-                         full.names = T) %>%
-  map_df(~read_excel(., sheet = "03 OCEANOGRAPHIC DATA"))
-
-fish_orig <- list.files(path = "./Data/",
-                        pattern = "*.xlsx", 
-                        full.names = T) %>% 
-  map_df(~read_excel(., sheet = "04 FISH"))
-
-stomach_orig <- list.files(path = "./Data/",
-                           pattern = "*.xlsx",
-                           full.names = T) %>%
-  map_df(~read_excel(., sheet = "05 STOMACH CONTENTS"))
-
-stomachLU_orig <- list.files(path = "./Data/",
-                           pattern = "*.xlsx",
-                           full.names = T) %>%
-  map_df(~read_excel(., sheet = "Lookup lists"))
+site_orig <- loadExcelFn("01 SITE")
+sets_orig <- loadExcelFn("02 FISHING SETS") 
+ocean_orig <- loadExcelFn("03 OCEANOGRAPHIC DATA")
+fish_orig <- loadExcelFn("04 FISH")
+stomach_orig <- loadExcelFn("05 STOMACH CONTENTS")
+stomachLU_orig <- loadExcelFn("Lookup lists")
 
 # tidy data
 site <- site_orig %>%
@@ -76,15 +63,21 @@ site <- site_orig %>%
   filter(!is.na(date)) %>%
   # remove default date given by excel in background
   mutate(time = str_sub(time, -8, -1),
-         datetime = ymd_hms(str_c(date, time, sep = " ")))
+         datetime = ymd_hms(str_c(date, time, sep = " "))) %>%
+#************************************* remove once unique keys are fixed*************************************
+  filter(is_unique == TRUE)
 
 sets <- sets_orig %>%
-  mutate(end_time = str_sub(end_time, -8, -1))
+  mutate(end_time = str_sub(end_time, -8, -1)) %>%
+#************************************* remove once unique keys are fixed*************************************
+  filter(is_unique == TRUE)
 
 ocean <- ocean_orig %>%
   mutate(time = str_sub(time, -8, -1))
 
-fish <- fish_orig
+fish <- fish_orig %>%
+#************************************* remove once unique keys are fixed*************************************
+    filter(is_unique == TRUE)
 
 stomach <- stomach_orig
 
@@ -99,7 +92,7 @@ ckCaught <- fish %>% filter(toupper(species) == "CN") %>% nrow()
 coCaught <- fish %>% filter(toupper(species) == "CO") %>% nrow()
 randomSamples <- fish %>% filter(frozen_random_clinical == "random") %>% nrow()
 clinicalSamples <- fish %>% filter(frozen_random_clinical == "clinical") %>% nrow()
-
+                   
 ```
 
 
@@ -144,137 +137,137 @@ kableExtra::kable(sumfish,
   add_header_above(c(" " = 3, "Catch" = 2, "Samples" = 2))
 
 
-#Temporal spread of fishing Events Figure broken down by stat week
-#JB working on 
-
-#fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
-TemporalPlot <- sets %>%
-  full_join(., site, by = "site_id") %>%
-  select(sound, site_id, fishingset_id, date, start_time) %>%
-  full_join(., fish, by = "fishingset_id") %>%
-  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-         sound = str_to_title(sound)) %>%
-  mutate(DAY_DISPLAY = day(date),
-         sound = str_to_title(sound)) %>%
-  mutate(Year = lubridate::year(date),
-         sound = str_to_title(sound)) %>%
-  mutate(DOY = lubridate::yday(date),
-         sound = str_to_title(sound)) %>%
-mutate(DayTime = lubridate::hour(start_time),
-         sound = str_to_title(sound)) %>%
-  mutate(BinaryTime = case_when(
-    DayTime %in% 0:11 ~ "AM",
-    DayTime %in% 12:23 ~ "PM"
-    )) %>%
-  add_column(DaysFished = 1)%>%
-  replace_na(list(BinaryTime="Unknown"))%>%
-  distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
-
-StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
-StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
-
-#make sure dates are in the correct format
-#have to be in yyyy/mm/dd for formatting with lubridate to work
-StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
-StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
-
-TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
-                by = c("date"="DateStart", "date"="DateEnd"),
-                match_fun = list(`>=`, `<=`)) %>% 
-  select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
-
-statweekspermonth <- StatWeekLU %>%
-  group_by(Month) %>%
-  summarize(totalstatweeks=n_distinct(StatWeekLU),
-            .groups = "drop")
-
-
-#table for how many blank rows that need to be added 
-#this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
-#Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
-#recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
-TemporalPlot2 <- TemporalPlot1 %>%
-  group_by(sound, Month) %>%
-  summarize(n = n_distinct(StatWeekLU),
-            .groups = "drop") %>%
-left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
-   group_by(sound, Month) %>%
-summarize(missingweeks = totalstatweeks - n,
-          .groups = "drop")
-
-#need to automate this still, need to work on
-TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
-add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", "11", "12", "13", "15", "32", "33", "34", "111", "112", "113", "21", "22", "11", "12", "13", "15", "11", "12", "13", "14", "32", "33", "34"))%>%
-  add_column(Year=c(rep(2021, 3), rep(2020,4), rep(2021, 9), rep(2020, 3), rep(2021, 13)))
-
-
- TemporalPlot3 <- TemporalPlot1 %>%
-   add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0) 
- #this now has the blank rows for plotting
- 
- TemporalPlot4 <- TemporalPlot3 %>%
-  group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime) 
- TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
-
-
- #Figures of the number of fishing days across sounds/year across statistical weeks
-P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-geom_bar(stat="identity") +
-  xlab("Statistical Week") +
-  ylab("Days Fished") +
-  ggtitle("2020") +
-  scale_fill_manual(values = "lightblue3")
-
-
-P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-geom_bar(stat = "identity") +
-  xlab("Statistical Week") +
-   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-    ylab("Days Fished") +
-  ggtitle("2021") +
-  scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
-
- 
-#coloured by AM vs PM fishing days
-#I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week 
-P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
-geom_bar(stat="identity")+
-  xlab("Statistical Week")+
-    ylab("Days Fished")+
-  ggtitle("2020")+
-   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-
-
-P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
-geom_bar(stat="identity")+
-  xlab("Statistical Week")+
-  scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-    ylab("Days Fished")+
-  ggtitle("2021")+
-  scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-
-
-P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
-          , P2 + theme(legend.position = "none"))
-
-P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
-          , P4 + theme(legend.position = "none" ))
-
-   legendP1P2 <- get_legend(P2 + 
-    guides(color = guide_legend(nrow = 2)) +
-    theme(legend.position = "bottom", legend.title = element_blank()))  
-   
-   legendP3P4 <- get_legend(P4 + 
-    guides(color = guide_legend(nrow = 2)) +
-    theme(legend.position = "bottom",legend.title = element_blank()))   
-
-  
-  DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
-  FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
-  
-  DaysFished
-  
-  FishingTime
+# #Temporal spread of fishing Events Figure broken down by stat week
+# #JB working on 
+# 
+# #fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
+# TemporalPlot <- sets %>%
+#   full_join(., site, by = "site_id") %>%
+#   select(sound, site_id, fishingset_id, date, start_time) %>%
+#   full_join(., fish, by = "fishingset_id") %>%
+#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+#          sound = str_to_title(sound)) %>%
+#   mutate(DAY_DISPLAY = day(date),
+#          sound = str_to_title(sound)) %>%
+#   mutate(Year = lubridate::year(date),
+#          sound = str_to_title(sound)) %>%
+#   mutate(DOY = lubridate::yday(date),
+#          sound = str_to_title(sound)) %>%
+# mutate(DayTime = lubridate::hour(start_time),
+#          sound = str_to_title(sound)) %>%
+#   mutate(BinaryTime = case_when(
+#     DayTime %in% 0:11 ~ "AM",
+#     DayTime %in% 12:23 ~ "PM"
+#     )) %>%
+#   add_column(DaysFished = 1)%>%
+#   replace_na(list(BinaryTime="Unknown"))%>%
+#   distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
+# 
+# StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
+# StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
+# 
+# #make sure dates are in the correct format
+# #have to be in yyyy/mm/dd for formatting with lubridate to work
+# StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
+# StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
+# 
+# TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
+#                 by = c("date"="DateStart", "date"="DateEnd"),
+#                 match_fun = list(`>=`, `<=`)) %>% 
+#   select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
+# 
+# statweekspermonth <- StatWeekLU %>%
+#   group_by(Month) %>%
+#   summarize(totalstatweeks=n_distinct(StatWeekLU),
+#             .groups = "drop")
+# 
+# 
+# #table for how many blank rows that need to be added 
+# #this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
+# #Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
+# #recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
+# TemporalPlot2 <- TemporalPlot1 %>%
+#   group_by(sound, Month) %>%
+#   summarize(n = n_distinct(StatWeekLU),
+#             .groups = "drop") %>%
+# left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
+#    group_by(sound, Month) %>%
+# summarize(missingweeks = totalstatweeks - n,
+#           .groups = "drop")
+# 
+# #need to automate this still, need to work on
+# TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
+# add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", "11", "12", "13", "15", "32", "33", "34", "111", "112", "113", "21", "22", "11", "12", "13", "15", "11", "12", "13", "14", "32", "33", "34"))%>%
+#   add_column(Year=c(rep(2021, 3), rep(2020,4), rep(2021, 9), rep(2020, 3), rep(2021, 13)))
+# 
+# 
+#  TemporalPlot3 <- TemporalPlot1 %>%
+#    add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0) 
+#  #this now has the blank rows for plotting
+#  
+#  TemporalPlot4 <- TemporalPlot3 %>%
+#   group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime) 
+#  TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
+# 
+# 
+#  #Figures of the number of fishing days across sounds/year across statistical weeks
+# P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+# geom_bar(stat="identity") +
+#   xlab("Statistical Week") +
+#   ylab("Days Fished") +
+#   ggtitle("2020") +
+#   scale_fill_manual(values = "lightblue3")
+# 
+# 
+# P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+# geom_bar(stat = "identity") +
+#   xlab("Statistical Week") +
+#    scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+#     ylab("Days Fished") +
+#   ggtitle("2021") +
+#   scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
+# 
+#  
+# #coloured by AM vs PM fishing days
+# #I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week 
+# P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
+# geom_bar(stat="identity")+
+#   xlab("Statistical Week")+
+#     ylab("Days Fished")+
+#   ggtitle("2020")+
+#    scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
+# 
+# 
+# P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
+# geom_bar(stat="identity")+
+#   xlab("Statistical Week")+
+#   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+#     ylab("Days Fished")+
+#   ggtitle("2021")+
+#   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
+# 
+# 
+# P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
+#           , P2 + theme(legend.position = "none"))
+# 
+# P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
+#           , P4 + theme(legend.position = "none" ))
+# 
+#    legendP1P2 <- get_legend(P2 + 
+#     guides(color = guide_legend(nrow = 2)) +
+#     theme(legend.position = "bottom", legend.title = element_blank()))  
+#    
+#    legendP3P4 <- get_legend(P4 + 
+#     guides(color = guide_legend(nrow = 2)) +
+#     theme(legend.position = "bottom",legend.title = element_blank()))   
+# 
+#   
+#   DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
+#   FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
+#   
+#   DaysFished
+#   
+#   FishingTime
   
 ```
 
@@ -334,6 +327,14 @@ if (soundName == "NOOTKA") {
   maxLon <- -126.0
 }
 
+# modify this when data comes in
+if (soundName == "KYUQUOT") {
+  minLat <- 49.9
+  maxLat <- 50.2
+  minLon <- -127.4
+  maxLon <- -127.0
+}
+
 # df for each species
 df_ck <- df %>% filter(species == "CN" | is.na(species))
 df_co <- df %>% filter(species == "CO" | is.na(species))
@@ -373,7 +374,8 @@ basemap <- ggplot() +
   geom_sf(data = bcn1) +
   xlim(minLon, maxLon) +
   ylim(minLat, maxLat) +
-  xlab("Longitude") + ylab("Latitude") +
+  xlab("Longitude") + 
+  ylab("Latitude") +
   theme_bw() 
 
 }
@@ -408,7 +410,9 @@ map_co <- basemap +
        subtitle = "Coho") +
   scale_size_continuous(breaks = c(0.15, 0.20,0.25, 0.30))
 
-map_ck + map_co
+plottitle <- str_c(str_to_title(soundName), "Sound", sep = " ")
+
+map_ck + map_co + plot_annotation(title = plottitle)
 
 }
 
@@ -420,8 +424,8 @@ map_ck + map_co
 # create Figure folder if it doesn't exist yet
 if (!dir.exists("Figures")) dir.create("Figures")
 
-# run these once with data then comment out to knit since long
-# create maps individually and save at lower resolution
+# # run these once with new data then comment out to knit since long
+# # create maps individually and save at lower resolution
 # clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
 # ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
 # quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
@@ -430,34 +434,59 @@ if (!dir.exists("Figures")) dir.create("Figures")
 # ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
 # nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
 # ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# kyuquotMap <- mapSoundfn("KYUQUOT", mapdf, "high")
+# ggsave("kyuquotMap.png", kyuquotMap, path = "Figures", height = 3, units = "in", dpi = 300)
 
 ```
 
-### Quatsino Sound  
 ```{r quatsinoMap, fig.align = 'center', fig.cap = "Quatsino Sound Catch and Fishing Effort"}
 
-knitr::include_graphics(here::here("Figures", "quatsinoMap.png"))
+quatsinoMapName <- here::here("Figures", "quatsinoMap.png")
+
+if (file.exists(quatsinoMapName)) {
+knitr::include_graphics(quatsinoMapName)
+} 
+  
 
 ```
 
-### Nootka Sound  
+```{r kyuquotMap, fig.align = 'center', fig.cap = "Kyuquot Sound Catch and Fishing Effort"}
+
+kyuquotMapName <- here::here("Figures", "kyuquotMap.png")
+
+if (file.exists(kyuquotMapName)) {
+knitr::include_graphics(kyuquotMapName)
+} 
+
+```
+
 ```{r nootkaMap, fig.align = 'center', fig.cap = "Nootka Sound Catch and Fishing Effort"}
 
-knitr::include_graphics(here::here("Figures", "nootkaMap.png"))
+nootkaMapName <- here::here("Figures", "nootkaMap.png")
+
+if (file.exists(nootkaMapName)) {
+knitr::include_graphics(nootkaMapName)
+} 
 
 ```
 
-### Clayoquot Sound  
 ```{r clayoquotMap, fig.align = 'center', fig.cap = "Clayoquot Sound Catch and Fishing Effort"}
 
-knitr::include_graphics(here::here("Figures", "clayoquotMap.png"))
+clayoquotMapName <- here::here("Figures", "clayoquotMap.png")
+
+if (file.exists(clayoquotMapName)) {
+knitr::include_graphics(clayoquotMapName)
+} 
 
 ```
 
-### Barkley Sound
 ```{r barkleyMap, fig.align = 'center', fig.cap = "Barkley Sound Catch and Fishing Effort"}
 
-knitr::include_graphics(here::here("Figures", "barkleyMap.png"))
+barkleyMapName <- here::here("Figures", "barkleyMap.png")
+
+if (file.exists(barkleyMapName)) {
+knitr::include_graphics(barkleyMapName)
+} 
 
 ```
  
@@ -480,6 +509,8 @@ thisdf <- lengthFreq %>%
   # select species
   filter(species == thisspecies)
 
+if (nrow(thisdf) > 0) {
+
 # remove NA weights and lengths
 df.LW <- thisdf %>%
   filter(!is.na(fork_length_mm)) %>%
@@ -500,7 +531,8 @@ dffit <- ggplot(df.LW) +
     theme_bw() 
 
 # put both graphs together
-dfbar / dffit + plot_annotation(title = thissound)
+dfbar / dffit + plot_annotation(title = str_c(thissound, "Sound", sep = " "))
+  }
 
 }
 
@@ -511,16 +543,29 @@ dfbar / dffit + plot_annotation(title = thissound)
 
 # create graphs
 QuatsinoCK <- graphSpecies(lengthFreq, "CN", "Quatsino")
-QuatsinoCK
+if (is.null(QuatsinoCK) == FALSE) {
+  QuatsinoCK
+}
 
 ```
 
+```{r lwKyuquotCK, fig.height = 3, fig.cap="Lengths and Weights of Kyuquot Juvenile Chinook Salmon."}
+
+# create graphs
+KyuquotCK <- graphSpecies(lengthFreq, "CN", "Kyuquot")
+if (is.null(KyuquotCK) == FALSE) {
+  KyuquotCK
+}
+
+```
 
 ```{r lwNootkaCK, fig.height = 3, fig.cap="Lengths and Weights of Nootka Juvenile Chinook Salmon."}
 
 # create graphs
 NootkaCK <- graphSpecies(lengthFreq, "CN", "Nootka")
-NootkaCK
+if (is.null(NootkaCK) == FALSE) {
+  NootkaCK
+}
 
 ```
 
@@ -529,7 +574,9 @@ NootkaCK
 
 # create graphs
 ClayoquotCK <- graphSpecies(lengthFreq, "CN", "Clayoquot")
-ClayoquotCK
+if (is.null(ClayoquotCK) == FALSE) {
+  ClayoquotCK
+}
 
 ```
 
@@ -538,16 +585,62 @@ ClayoquotCK
 
 # create graphs
 BarkleyCK <- graphSpecies(lengthFreq, "CN", "Barkley")
-BarkleyCK
+if (is.null(BarkleyCK) == FALSE) {
+  BarkleyCK
+}
 
 ```
 
 
-```{r lwClayoquotCo, fig.height = 3, fig.cap="Lengths and Weights of Clayoquot Coho Salmon."}
+```{r lwQuatsinoCO, fig.height = 3, fig.cap="Lengths and Weights of Quatsino Juvenile Coho Salmon."}
 
-# # create graphs
-# ClayoquotCO <- graphSpecies(lengthFreqClayoquot, "CO")
-# ClayoquotCO
+# create graphs
+QuatsinoCO <- graphSpecies(lengthFreq, "CO", "Quatsino")
+if (is.null(QuatsinoCO) == FALSE) {
+  QuatsinoCO
+}
+
+```
+
+```{r lwKyuquotCO, fig.height = 3, fig.cap="Lengths and Weights of Kyuquot Juvenile Coho Salmon."}
+
+# create graphs
+KyuquotCO <- graphSpecies(lengthFreq, "CO", "Kyuquot")
+if (is.null(KyuquotCO) == FALSE) {
+  KyuquotCO
+}
+
+```
+
+```{r lwNootkaCO, fig.height = 3, fig.cap="Lengths and Weights of Nootka Juvenile Coho Salmon."}
+
+# create graphs
+NootkaCO <- graphSpecies(lengthFreq, "CO", "Nootka")
+if (is.null(NootkaCO) == FALSE) {
+  NootkaCO
+}
+
+```
+
+
+```{r lwClayoquotCO, fig.height = 3, fig.cap="Lengths and Weights of Clayoquot Coho Salmon."}
+
+# create graphs
+ClayoquotCO <- graphSpecies(lengthFreq, "CO", "Clayoquot")
+if (is.null(ClayoquotCO) == FALSE) {
+  ClayoquotCO
+}
+
+```
+
+
+```{r lwBarkleyCO, fig.height = 3, fig.cap="Lengths and Weights of Barkley Coho Salmon."}
+
+# create graphs
+BarkleyCO <- graphSpecies(lengthFreq, "CO", "Barkley")
+if (is.null(BarkleyCO) == FALSE) {
+  BarkleyCO
+}
 
 ```
 
@@ -589,11 +682,96 @@ stomachClayplot <- ggplot(stomach.1, aes(x = prey_description, y = CountPrey, fi
   xlab("Prey item") +
   ylab("Number of fish") +
   ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)") +
-  scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
+  #scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
+  scale_fill_viridis_d()
 
 stomachClayplot
 
 ```
 
+```{r photo, out.width="50%", fig.align = 'center', fig.cap = "Giant Pacific Octopus larvae  found inside a juvenile chinook salmon stomach caught in Bawden Bay in Clayoquot Sound on Febraruy 27, 2021 (photo credit L. Fernandez)."}
+
+# load image
+knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralarva.jpg"))
+
+```
+
+
+
 ## Other Data
-The `r randomSamples + clinicalSamples` samples transported to the Pacific Biological Station will be processed for infectious agents, stressors and diseases using FitChips; stomachs contents will be identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); and energy density will be measured. 
+
+After samples are transported to the Pacific Biological Station, lab anaylsis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
+
+```{r sampleTable}
+
+# make dataframe of samples taken by sound
+otherSamples <- fish %>%
+  left_join(., sets, by = "fishingset_id") %>%
+  left_join(., site, by = "site_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound_fac = as.factor(sound),
+         species_fac = as.factor(species),
+         ) %>%
+  select(MONTH_DISPLAY, sound_fac, species_fac, cwt, gill_vial, fin_vial, otolith_cell, sea_lice_yn) %>%
+  group_by(MONTH_DISPLAY, sound_fac, species_fac) %>%
+  summarise(gills = sum(!(is.na(gill_vial))),
+            dna = sum(!(is.na(fin_vial))),
+            sealice = sum(sea_lice_yn == "Y"),
+            otoliths = n(),
+            cwt = sum(!(is.na(cwt))),
+            .groups = "drop") %>%
+    mutate(MONTH_ORDER = case_when(
+    MONTH_DISPLAY == "Oct" ~ 1,
+    MONTH_DISPLAY == "Nov" ~ 2,
+    MONTH_DISPLAY == "Dec" ~ 3,
+    MONTH_DISPLAY == "Jan" ~ 4,
+    MONTH_DISPLAY == "Feb" ~ 5,
+    MONTH_DISPLAY == "Mar" ~ 6,
+  )) 
+
+ckSamples <- otherSamples %>% 
+  filter(species_fac == "CN") %>% 
+  rename(ckgills = gills, ckdna = dna, cksealice = sealice, ckotoliths = otoliths, ckcwt = cwt)
+
+coSamples <- otherSamples %>% filter(species_fac == "CO") %>% 
+  rename(cogills = gills, codna = dna, cosealice = sealice, cootoliths = otoliths, cocwt = cwt)
+
+ckcoSamples <- ckSamples %>%
+  full_join(., coSamples, by = c("MONTH_DISPLAY", "sound_fac", "species_fac", "MONTH_ORDER")) %>%
+  arrange(MONTH_ORDER) %>%
+  select(-MONTH_ORDER, -species_fac) %>%
+  mutate(sound_fac = str_to_title(as.character(sound_fac)),
+         MONTH_DISPLAY = as.character(MONTH_DISPLAY))
+
+# make totals
+totalSamples <- c("All Months", "All Sounds", 
+                  sum(ckcoSamples$ckgills, na.rm = TRUE),
+                  sum(ckcoSamples$ckdna, na.rm = TRUE),
+                  sum(ckcoSamples$cksealice, na.rm = TRUE),
+                  sum(ckcoSamples$ckotoliths, na.rm = TRUE),
+                  sum(ckcoSamples$ckcwt, na.rm = TRUE),
+                  sum(ckcoSamples$cogills, na.rm = TRUE),
+                  sum(ckcoSamples$codna, na.rm = TRUE),
+                  sum(ckcoSamples$cosealice, na.rm = TRUE),
+                  sum(ckcoSamples$cootoliths, na.rm = TRUE),
+                  sum(ckcoSamples$cocwt, na.rm = TRUE)
+                  )
+
+samplesDisplay <- rbind(ckcoSamples, totalSamples) %>%
+    mutate(MONTH_DISPLAY = if_else(!(is.na(MONTH_DISPLAY)), MONTH_DISPLAY, "Unknown"),
+           sound_fac = if_else(!(is.na(sound_fac)), sound_fac, "Unknown"),
+    across(everything(), ~replace_na(.x, 0))
+  )
+
+# print table
+kableExtra::kable(samplesDisplay,
+                  col.names = c("Month", "Sound", "Gills", "DNA", "Lice", "Otoliths", "CWTs",
+                                "Gills", "DNA", "Lice", "Otoliths", "CWTs"),
+                  booktabs = TRUE,
+                  caption = "Summary of Salmon Samples Collected") %>%
+  kable_styling(latex_options = "scale_down") %>%
+  add_header_above(c(" " = 2, "Chinook" = 5, "Coho" = 5))
+
+
+```
+
