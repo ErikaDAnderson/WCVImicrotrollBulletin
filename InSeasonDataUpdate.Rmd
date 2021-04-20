@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targetting juvenile chinook and coho salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -27,13 +27,21 @@ library(patchwork) # group plots together
 library(ggpubr) # arrange plots another way
 library(car) # stats
 library(ggplot2) #temporal spread of fishing trips figure
-library(cowplot) #figure arrangement
+library(cowplot) # figure arrangement
 library(fuzzyjoin)
 library(reprex)
 library(SwimmeR)
 
 # by default, do not show R code
 knitr::opts_chunk$set(echo = FALSE)
+
+# hide NAs within tables
+  options(knitr.kable.NA = '')
+  
+# keep graphs consistent theme
+  theme_set(theme_bw())
+
+
 
 ```
 
@@ -63,21 +71,15 @@ site <- site_orig %>%
   filter(!is.na(date)) %>%
   # remove default date given by excel in background
   mutate(time = str_sub(time, -8, -1),
-         datetime = ymd_hms(str_c(date, time, sep = " "))) %>%
-#************************************* remove once unique keys are fixed*************************************
-  filter(is_unique == TRUE)
+         datetime = ymd_hms(str_c(date, time, sep = " ")))
 
 sets <- sets_orig %>%
-  mutate(end_time = str_sub(end_time, -8, -1)) %>%
-#************************************* remove once unique keys are fixed*************************************
-  filter(is_unique == TRUE)
+  mutate(end_time = str_sub(end_time, -8, -1)) 
 
 ocean <- ocean_orig %>%
   mutate(time = str_sub(time, -8, -1))
 
-fish <- fish_orig %>%
-#************************************* remove once unique keys are fixed*************************************
-    filter(is_unique == TRUE)
+fish <- fish_orig 
 
 stomach <- stomach_orig
 
@@ -87,6 +89,7 @@ stomachLU <- stomachLU_orig
 overallStartDate <- format(min(site$date, na.rm = TRUE), "%b. %d, %Y")
 overallEndDate <- format(max(site$date, na.rm = TRUE), "%b. %d, %Y")
 numDaysFished <- site %>% select(date, sound) %>% distinct() %>% nrow()
+numBoatDaysFished <- site %>% select(date, sound, vessel) %>% distinct() %>% nrow()
 soundsSampled <- unique(site$sound) %>% str_to_title() %>% sort()
 ckCaught <- fish %>% filter(toupper(species) == "CN") %>% nrow()
 coCaught <- fish %>% filter(toupper(species) == "CO") %>% nrow()
@@ -98,15 +101,19 @@ clinicalSamples <- fish %>% filter(frozen_random_clinical == "clinical") %>% nro
 
 ## Data Collected
 
-This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
+This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
 
 ```{r dataCollected}
 #JB March 24 2021 added in number of days fished/sound/month
 
 sumfish <- sets %>%
-  full_join(., site, by = "site_id") %>%
+  # note -> use full join to find missing sets
+  # found 5 missing s WCVI_v1.1_8Apr2021.xlsx
+  inner_join(., site, by = "site_id") %>%
   select(sound, site_id, fishingset_id, date) %>%
-  full_join(., fish, by = "fishingset_id") %>%
+  # check number results match number of sets
+  # if grouped by count of fishingsite_id
+  left_join(., fish, by = "fishingset_id") %>%
   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
          sound = str_to_title(sound)) %>%
   mutate(DAY_DISPLAY = day(date),
@@ -274,221 +281,118 @@ kableExtra::kable(sumfish,
   
 ## Maps
 
-There are two maps per sound showing juvenile chinook and coho salmon catch per unit effort (salmon/hook) per fishing set. The circles are proportional to the amount of catch i.e. the more fish caught, the bigger the circles.  The black crosses represents fishing events with no catch.  
+The following maps show juvenile chinook and coho salmon catch in counts of salmon. The black crosses represents fishing events with no catch.  
 
 ```{r maps, message = FALSE}
-
-mapdf <- site %>%
-  full_join(., sets, by = c("site_id", "timezone")) %>%
-  full_join(., fish, by = "fishingset_id")
-
-# create function to map each sound sampled
-mapSoundfn <- function(soundName, mapdf, resolution) {
-  
-df <- mapdf %>%
-  filter(sound == toupper(soundName)) %>%
-  filter(!(is.na(start_latitude))) %>%
-  filter(!(is.na(start_longitude))) %>%
-  group_by(fishingset_id, start_latitude, start_longitude, 
-           end_latitude, end_longitude, hook_depth_min, hook_depth_max,
-           hooks_used, species) %>%
-  summarize(hooks = sum(hooks_used, na.rm = TRUE),
-            catch = n(),
-            catchByhook = catch/hooks,
-            .groups = 'drop')
-
-# use standard min and max lat and longs for limits to basemap for each sound
-# add Kyuquot and Nootka when fishing starts
-if (soundName == "CLAYOQUOT") {
-  minLat <- 49.1
-  maxLat <- 49.5
-  minLon <- -126.3
-  maxLon <- -125.7
-}
-
-if (soundName == "QUATSINO") {
-  minLat <- 50.45
-  maxLat <- 50.65
-  minLon <- -127.8
-  maxLon <- -127.3
-}
-
-if (soundName == "BARKLEY") {
-  minLat <- 48.75
-  maxLat <- 49.1
-  minLon <- -125.5
-  maxLon <- -124.9
-}
-
-if (soundName == "NOOTKA") {
-  minLat <- 49.5
-  maxLat <- 49.85
-  minLon <- -126.8
-  maxLon <- -126.0
-}
-
-# modify this when data comes in
-if (soundName == "KYUQUOT") {
-  minLat <- 49.9
-  maxLat <- 50.2
-  minLon <- -127.4
-  maxLon <- -127.0
-}
-
-# df for each species
-df_ck <- df %>% filter(species == "CN" | is.na(species))
-df_co <- df %>% filter(species == "CO" | is.na(species))
-
-
-##  Mapping data from bcmaps
-bcn <- bc_neighbours()
-bcn <- bcn %>% st_transform(4326)
-bcn1 <- bcn %>%
-  filter(name != "British Columbia") %>%  
-  filter(name != "Pacific Ocean")
-
-if (resolution == "high") {
-  
-bchigh <- bc_bound_hres()
-bchigh <- bchigh %>% st_transform(4326)
-
-#use for high res map sucha s for final
-basemap <- ggplot() +
- geom_sf(data = bchigh, fill = "lightyellow1") +
- geom_sf(data = bcn1) +
- xlim(minLon, maxLon) +
- ylim(minLat, maxLat) +
- xlab("Longitude") + ylab("Latitude") +
- theme_bw() #+
-# theme(panel.background = element_rect(fill = "lightcyan2"))
-  } 
-
-if (resolution == "low") {
-  
-bclow <- bc_bound()
-bclow <- bclow %>% st_transform(4326)
-
-#low res version of bcmaps - good for quicker drafts
-basemap <- ggplot() +
-  geom_sf(data = bclow, fill = "lightyellow1") +
-  geom_sf(data = bcn1) +
-  xlim(minLon, maxLon) +
-  ylim(minLat, maxLat) +
-  xlab("Longitude") + 
-  ylab("Latitude") +
-  theme_bw() 
-
-}
-
-map_ck <- basemap +
-    geom_point(data = filter(df_ck, is.na(species)),
-             aes(start_longitude, start_latitude),
-             shape = 3) +
-      geom_point(data = filter(df_ck, !(is.na(species))),
-             aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.5) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank()
-        #,
-        #legend.position = "bottom"
-        ) +
-  labs(size = "Salmon \nper Hook",
-       subtitle = "Chinook") +
-  scale_size_continuous(breaks = c(0.15, 0.20, 0.25, 0.30))
-
-map_co <- basemap +
-    geom_point(data = filter(df_co, is.na(species)),
-             aes(start_longitude, start_latitude),
-             shape = 3) +
-      geom_point(data = filter(df_co, !(is.na(species))),
-             aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.5) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        legend.position = "none") + # when there are more coho confirm that scales are same
-  labs(size = "Salmon \nper Hook",
-       subtitle = "Coho") +
-  scale_size_continuous(breaks = c(0.15, 0.20,0.25, 0.30))
-
-plottitle <- str_c(str_to_title(soundName), "Sound", sep = " ")
-
-map_ck + map_co + plot_annotation(title = plottitle)
-
-}
-
-## future addition to run through all sounds in dataset
-#sound_vec <- unique(site$sound)
-#allMaps <- sound_vec %>%
-#  map(mapSoundfn, mapdf = mapdf, resolution = "low")
-
-# create Figure folder if it doesn't exist yet
-if (!dir.exists("Figures")) dir.create("Figures")
-
-# # run these once with new data then comment out to knit since long
-# # create maps individually and save at lower resolution
-# clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
-# ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
-# quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
-# ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
-# barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
-# ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
-# nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
-# ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
-# kyuquotMap <- mapSoundfn("KYUQUOT", mapdf, "high")
-# ggsave("kyuquotMap.png", kyuquotMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# use R script mapSounds.R to create new maps
+# QC the coordinates in that script to find errors
+# having maps in Figures folder are needed to allow this report to be generated
+# make sure you are not using old maps :)
+# delete/move older maps from the Figures folder
+# may need to crop some maps if they are inappropriately sized
+# how to fix size for variable number of maps?
 
 ```
 
-```{r quatsinoMap, fig.align = 'center', fig.cap = "Quatsino Sound Catch and Fishing Effort"}
+```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Chinock Salmon Catch and Fishing Effort"}
 
-quatsinoMapName <- here::here("Figures", "quatsinoMap.png")
+quatsinoMapNameCK <- here::here("Figures", "QuatsinoCKmap.png")
 
-if (file.exists(quatsinoMapName)) {
-knitr::include_graphics(quatsinoMapName)
+if (file.exists(quatsinoMapNameCK)) {
+knitr::include_graphics(quatsinoMapNameCK)
 } 
   
-
 ```
 
-```{r kyuquotMap, fig.align = 'center', fig.cap = "Kyuquot Sound Catch and Fishing Effort"}
+```{r quatsinoMapCO, fig.align = 'center', fig.cap = "Quatsino Sound Coho Salmon Catch and Fishing Effort"}
 
-kyuquotMapName <- here::here("Figures", "kyuquotMap.png")
+quatsinoMapNameCO <- here::here("Figures", "QuatsinoCOmap.png")
 
-if (file.exists(kyuquotMapName)) {
-knitr::include_graphics(kyuquotMapName)
+if (file.exists(quatsinoMapNameCO)) {
+knitr::include_graphics(quatsinoMapNameCO)
+} 
+  
+```
+
+```{r kyuquotMapCK, fig.align = 'center', fig.cap = "Kyuquot Sound Chinock Salmon Catch and Fishing Effort"}
+
+kyuquotMapNameCK <- here::here("Figures", "KyuquotCKmap.png")
+
+if (file.exists(kyuquotMapNameCK)) {
+knitr::include_graphics(kyuquotMapNameCK)
 } 
 
 ```
 
-```{r nootkaMap, fig.align = 'center', fig.cap = "Nootka Sound Catch and Fishing Effort"}
+```{r kyuquotMapCO, fig.align = 'center', fig.cap = "Kyuquot Sound Coho Salmon Catch and Fishing Effort"}
 
-nootkaMapName <- here::here("Figures", "nootkaMap.png")
+kyuquotMapNameCO <- here::here("Figures", "KyuquotCOmap.png")
 
-if (file.exists(nootkaMapName)) {
-knitr::include_graphics(nootkaMapName)
+if (file.exists(kyuquotMapNameCO)) {
+knitr::include_graphics(kyuquotMapNameCO)
 } 
 
 ```
 
-```{r clayoquotMap, fig.align = 'center', fig.cap = "Clayoquot Sound Catch and Fishing Effort"}
+```{r nootkaMapCK, fig.align = 'center', fig.cap = "Nootka Sound Chinock Salmon Catch and Fishing Effort"}
 
-clayoquotMapName <- here::here("Figures", "clayoquotMap.png")
+nootkaMapNameCK <- here::here("Figures", "NootkaCKmap.png")
 
-if (file.exists(clayoquotMapName)) {
-knitr::include_graphics(clayoquotMapName)
+if (file.exists(nootkaMapNameCK)) {
+knitr::include_graphics(nootkaMapNameCK)
 } 
 
 ```
 
-```{r barkleyMap, fig.align = 'center', fig.cap = "Barkley Sound Catch and Fishing Effort"}
+```{r nootkaMapCO, fig.align = 'center', fig.cap = "Nootka Sound Coho Salmon Catch and Fishing Effort"}
 
-barkleyMapName <- here::here("Figures", "barkleyMap.png")
+nootkaMapNameCO <- here::here("Figures", "NootkaCOmap.png")
 
-if (file.exists(barkleyMapName)) {
-knitr::include_graphics(barkleyMapName)
+if (file.exists(nootkaMapNameCO)) {
+knitr::include_graphics(nootkaMapNameCO)
 } 
 
 ```
+
+```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Chinock Salmon Catch and Fishing Effort"}
+
+clayoquotMapNameCK <- here::here("Figures", "ClayoquotCKmap.png")
+
+if (file.exists(clayoquotMapNameCK)) {
+knitr::include_graphics(clayoquotMapNameCK)
+} 
+
+```
+
+```{r clayoquotMapCO, fig.align = 'center', fig.cap = "Clayoquot Sound Coho Salmon Catch and Fishing Effort"}
+
+clayoquotMapNameCO <- here::here("Figures", "ClayoquotCOmap.png")
+
+if (file.exists(clayoquotMapNameCO)) {
+knitr::include_graphics(clayoquotMapNameCO)
+} 
+
+```
+
+```{r barkleyMapCK, fig.align = 'center', fig.cap = "Barkley Sound Chinock Salmon Catch and Fishing Effort"}
+
+barkleyMapNameCK <- here::here("Figures", "BarkleyCKmap.png")
+
+if (file.exists(barkleyMapNameCK)) {
+knitr::include_graphics(barkleyMapNameCK)
+} 
+
+```
+ 
+```{r barkleyMapCO, fig.align = 'center', fig.cap = "Barkley Sound Coho Salmon Catch and Fishing Effort"}
+
+barkleyMapNameCO <- here::here("Figures", "BarkleyCOmap.png")
+
+if (file.exists(barkleyMapNameCO)) {
+knitr::include_graphics(barkleyMapNameCO)
+} 
+
+``` 
  
 ## Salmon Lengths and Weights
 
@@ -496,7 +400,9 @@ The Chinook Salmon lengths and weights are graphed below.
 
 ```{r forkfn}
 
-lengthFreq <- mapdf %>%
+lengthFreq <- site %>%
+  full_join(., sets, by = c("site_id", "timezone")) %>%
+  full_join(., fish, by = "fishingset_id") %>%
   select(sound, fish_id, species, fork_length_mm, fresh_weight_g) %>%
   filter(!(is.na(fish_id))) 
 
@@ -518,7 +424,7 @@ df.LW <- thisdf %>%
 
 # graph length frequency
 dfbar <- ggplot(df.LW) +
-  geom_histogram(aes(fork_length_mm), binwidth = 5) +
+  geom_histogram(aes(fork_length_mm), binwidth = 1) +
   labs(x = "Length (mm)",
        y = "Count") +
   theme_bw() 
@@ -646,7 +552,7 @@ if (is.null(BarkleyCO) == FALSE) {
 
 ## Stomach Content Analysis
 
-Preliminary informaiton on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
+Preliminary information on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
 ```{r Stomach Content."}
 
 #Figure of Stomach content across sounds and fishing trips 
@@ -668,24 +574,40 @@ stomach.1 <- stomach %>%
 #could organize this by stat week and show prey items across weeks - summarizing by stat week is not very intuitive to me
 #since some stat weeks include days from two months
 
+# EA - order factor by months over winter
+stomach.1$Month <- factor(stomach.1$Month,
+                             levels = c("Sep", "Oct", "Nov", "Dec",
+                                        "Jan", "Feb", "Mar", "Apr", "May"))
+
 
 ```
 
 
-```{r stomachClay, fig.height = 3, fig.cap="Prey items within Clayoquot juvenile chinook salmon."}
+```{r stomachClay, fig.height = 3, fig.cap="Prey items within juvenile chinook salmon."}
 
 # create graphs
-#prey items from fish samples in Clayoquot across sampling months
+#prey items from fish samples in across sampling months
 #note that for showing this into the future I would rather fill by sound/species (interaction) and facet wrap or grid by month
-stomachClayplot <- ggplot(stomach.1, aes(x = prey_description, y = CountPrey, fill = Month)) +
+
+# dynamically create the number of stomachs
+numstomach <- stomach.1 %>%
+  select(fish_id) %>%
+  distinct() %>%
+  nrow()
+
+# EA added facts by months and fill by sound according to your notes
+# feel free to modify according to your idea
+
+ggplot(filter(stomach.1, !is.na(sound)), aes(x = prey_description, y = CountPrey, fill = sound)) +
   geom_bar(stat = "identity") +
   xlab("Prey item") +
   ylab("Number of fish") +
-  ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)") +
+  ggtitle(str_c("Contents of Juvenile Salmon Stomachs (n=", numstomach, ")")) +
   #scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
-  scale_fill_viridis_d()
-
-stomachClayplot
+  scale_fill_viridis_d() +
+  coord_flip() +
+  theme(strip.background = element_rect(fill = "white")) +
+  facet_wrap(~Month)
 
 ```
 
@@ -697,10 +619,9 @@ knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralar
 ```
 
 
-
 ## Other Data
 
-After samples are transported to the Pacific Biological Station, lab anaylsis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
+After samples are transported to the Pacific Biological Station, lab analysis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
 
 ```{r sampleTable}
 
