@@ -16,6 +16,7 @@ library(readxl) # read excel files
 library(lubridate) # date times
 library(bcmaps) # bc basemaps
 library(hexbin) # stat_binhex() function
+library(viridis) # color themes for color blind people
 
 
 ###############
@@ -206,14 +207,15 @@ mapSoundfn <- function(soundName, mapdf, resolution, thisSpecies) {
     stat_binhex(data = df_ck,
                 aes(start_longitude, start_latitude),
                 alpha = 0.7) +
-    scale_fill_gradient(low = "darkblue", high = "red") +
+    scale_fill_viridis() +
+    #scale_fill_gradient(low = "darkblue", high = "red") +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
           strip.background = element_rect(fill = "white")) +
     labs(fill = "Count",
          subtitle = str_c(str_to_title(soundName), " Chinook Salmon")
          ) +
-    facet_wrap(~MONTH_DISPLAY)
+    facet_wrap(~MONTH_DISPLAY, ncol = 2)
     
   }
   
@@ -225,14 +227,15 @@ mapSoundfn <- function(soundName, mapdf, resolution, thisSpecies) {
     stat_binhex(data = df_co,
                 aes(start_longitude, start_latitude),
                 alpha = 0.7) +
-    scale_fill_gradient(low = "darkblue", high = "red") +
+    scale_fill_viridis() +
+    #scale_fill_gradient(low = "darkblue", high = "red") +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
           strip.background = element_rect(fill = "white")) +
     labs(fill = "Count",
          subtitle = str_c(str_to_title(soundName), " Coho Salmon")
          ) +
-    facet_wrap(~ MONTH_DISPLAY)
+    facet_wrap(~ MONTH_DISPLAY, ncol = 2)
   }
   
   return(thismap)
@@ -246,6 +249,7 @@ mapSoundfn <- function(soundName, mapdf, resolution, thisSpecies) {
 if (!dir.exists("Figures")) dir.create("Figures")
 
 # create function to make maps and save for each species and sound
+# ***need to incorporate auto sizing depending on number of maps
 mapAndSavefn <- function(soundName) {
   
   finalmapCK <- mapSoundfn(soundName, mapdf, "high", "CK")
@@ -258,12 +262,15 @@ mapAndSavefn <- function(soundName) {
   
 }
 
-# make maps and save
-mapAndSavefn("CLAYOQUOT")
-mapAndSavefn("BARKLEY")
-mapAndSavefn("QUATSINO")
-mapAndSavefn("KYUQUOT")
-mapAndSavefn("NOOTKA")
+# only make maps if they have fished
+whereFishedvec <- mapdf %>%
+  group_by(sound) %>%
+  count() %>%
+  filter(!(is.na(sound))) %>%
+  pull(sound)
+
+# make maps in areas fished and save
+map(whereFishedvec, mapAndSavefn)
 
 # list warnings for removed coordinates 
 # if sourcing the code rather than stepping thru code
