@@ -14,7 +14,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targetting juvenile chinook and coho salmon in WCVI Sounds including Barkley, Claqyoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -27,13 +27,21 @@ library(patchwork) # group plots together
 library(ggpubr) # arrange plots another way
 library(car) # stats
 library(ggplot2) #temporal spread of fishing trips figure
-library(cowplot) #figure arrangement
+library(cowplot) # figure arrangement
 library(fuzzyjoin)
 library(reprex)
 library(SwimmeR)
 
 # by default, do not show R code
 knitr::opts_chunk$set(echo = FALSE)
+
+# hide NAs within tables
+  options(knitr.kable.NA = '')
+  
+# keep graphs consistent theme
+  theme_set(theme_bw())
+
+
 
 ```
 
@@ -273,66 +281,118 @@ kableExtra::kable(sumfish,
   
 ## Maps
 
-There are two maps per sound showing juvenile chinook and coho salmon catch per unit effort (salmon/hook) per fishing set. The circles are proportional to the amount of catch i.e. the more fish caught, the bigger the circles.  The black crosses represents fishing events with no catch.  
+The following maps show juvenile chinook and coho salmon catch in counts of salmon. The black crosses represents fishing events with no catch.  
 
 ```{r maps, message = FALSE}
-# use R script Rmaps.R to create new maps
+# use R script mapSounds.R to create new maps
 # QC the coordinates in that script to find errors
-# maps in Figures folder will allow this report to be generated
-# make sure you are not using old maps though
+# having maps in Figures folder are needed to allow this report to be generated
+# make sure you are not using old maps :)
+# delete/move older maps from the Figures folder
+# may need to crop some maps if they are inappropriately sized
+# how to fix size for variable number of maps?
 
 ```
 
-```{r quatsinoMap, fig.align = 'center', fig.cap = "Quatsino Sound Catch and Fishing Effort"}
+```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Chinock Salmon Catch and Fishing Effort"}
 
-quatsinoMapName <- here::here("Figures", "quatsinoMap.png")
+quatsinoMapNameCK <- here::here("Figures", "QuatsinoCKmap.png")
 
-if (file.exists(quatsinoMapName)) {
-knitr::include_graphics(quatsinoMapName)
+if (file.exists(quatsinoMapNameCK)) {
+knitr::include_graphics(quatsinoMapNameCK)
 } 
   
-
 ```
 
-```{r kyuquotMap, fig.align = 'center', fig.cap = "Kyuquot Sound Catch and Fishing Effort"}
+```{r quatsinoMapCO, fig.align = 'center', fig.cap = "Quatsino Sound Coho Salmon Catch and Fishing Effort"}
 
-kyuquotMapName <- here::here("Figures", "kyuquotMap.png")
+quatsinoMapNameCO <- here::here("Figures", "QuatsinoCOmap.png")
 
-if (file.exists(kyuquotMapName)) {
-knitr::include_graphics(kyuquotMapName)
+if (file.exists(quatsinoMapNameCO)) {
+knitr::include_graphics(quatsinoMapNameCO)
+} 
+  
+```
+
+```{r kyuquotMapCK, fig.align = 'center', fig.cap = "Kyuquot Sound Chinock Salmon Catch and Fishing Effort"}
+
+kyuquotMapNameCK <- here::here("Figures", "KyuquotCKmap.png")
+
+if (file.exists(kyuquotMapNameCK)) {
+knitr::include_graphics(kyuquotMapNameCK)
 } 
 
 ```
 
-```{r nootkaMap, fig.align = 'center', fig.cap = "Nootka Sound Catch and Fishing Effort"}
+```{r kyuquotMapCO, fig.align = 'center', fig.cap = "Kyuquot Sound Coho Salmon Catch and Fishing Effort"}
 
-nootkaMapName <- here::here("Figures", "nootkaMap.png")
+kyuquotMapNameCO <- here::here("Figures", "KyuquotCOmap.png")
 
-if (file.exists(nootkaMapName)) {
-knitr::include_graphics(nootkaMapName)
+if (file.exists(kyuquotMapNameCO)) {
+knitr::include_graphics(kyuquotMapNameCO)
 } 
 
 ```
 
-```{r clayoquotMap, fig.align = 'center', fig.cap = "Clayoquot Sound Catch and Fishing Effort"}
+```{r nootkaMapCK, fig.align = 'center', fig.cap = "Nootka Sound Chinock Salmon Catch and Fishing Effort"}
 
-clayoquotMapName <- here::here("Figures", "clayoquotMap.png")
+nootkaMapNameCK <- here::here("Figures", "NootkaCKmap.png")
 
-if (file.exists(clayoquotMapName)) {
-knitr::include_graphics(clayoquotMapName)
+if (file.exists(nootkaMapNameCK)) {
+knitr::include_graphics(nootkaMapNameCK)
 } 
 
 ```
 
-```{r barkleyMap, fig.align = 'center', fig.cap = "Barkley Sound Catch and Fishing Effort"}
+```{r nootkaMapCO, fig.align = 'center', fig.cap = "Nootka Sound Coho Salmon Catch and Fishing Effort"}
 
-barkleyMapName <- here::here("Figures", "barkleyMap.png")
+nootkaMapNameCO <- here::here("Figures", "NootkaCOmap.png")
 
-if (file.exists(barkleyMapName)) {
-knitr::include_graphics(barkleyMapName)
+if (file.exists(nootkaMapNameCO)) {
+knitr::include_graphics(nootkaMapNameCO)
 } 
 
 ```
+
+```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Chinock Salmon Catch and Fishing Effort"}
+
+clayoquotMapNameCK <- here::here("Figures", "ClayoquotCKmap.png")
+
+if (file.exists(clayoquotMapNameCK)) {
+knitr::include_graphics(clayoquotMapNameCK)
+} 
+
+```
+
+```{r clayoquotMapCO, fig.align = 'center', fig.cap = "Clayoquot Sound Coho Salmon Catch and Fishing Effort"}
+
+clayoquotMapNameCO <- here::here("Figures", "ClayoquotCOmap.png")
+
+if (file.exists(clayoquotMapNameCO)) {
+knitr::include_graphics(clayoquotMapNameCO)
+} 
+
+```
+
+```{r barkleyMapCK, fig.align = 'center', fig.cap = "Barkley Sound Chinock Salmon Catch and Fishing Effort"}
+
+barkleyMapNameCK <- here::here("Figures", "BarkleyCKmap.png")
+
+if (file.exists(barkleyMapNameCK)) {
+knitr::include_graphics(barkleyMapNameCK)
+} 
+
+```
+ 
+```{r barkleyMapCO, fig.align = 'center', fig.cap = "Barkley Sound Coho Salmon Catch and Fishing Effort"}
+
+barkleyMapNameCO <- here::here("Figures", "BarkleyCOmap.png")
+
+if (file.exists(barkleyMapNameCO)) {
+knitr::include_graphics(barkleyMapNameCO)
+} 
+
+``` 
  
 ## Salmon Lengths and Weights
 
@@ -492,7 +552,7 @@ if (is.null(BarkleyCO) == FALSE) {
 
 ## Stomach Content Analysis
 
-Preliminary informaiton on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
+Preliminary information on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
 ```{r Stomach Content."}
 
 #Figure of Stomach content across sounds and fishing trips 
@@ -514,24 +574,40 @@ stomach.1 <- stomach %>%
 #could organize this by stat week and show prey items across weeks - summarizing by stat week is not very intuitive to me
 #since some stat weeks include days from two months
 
+# EA - order factor by months over winter
+stomach.1$Month <- factor(stomach.1$Month,
+                             levels = c("Sep", "Oct", "Nov", "Dec",
+                                        "Jan", "Feb", "Mar", "Apr", "May"))
+
 
 ```
 
 
-```{r stomachClay, fig.height = 3, fig.cap="Prey items within Clayoquot juvenile chinook salmon."}
+```{r stomachClay, fig.height = 3, fig.cap="Prey items within juvenile chinook salmon."}
 
 # create graphs
-#prey items from fish samples in Clayoquot across sampling months
+#prey items from fish samples in across sampling months
 #note that for showing this into the future I would rather fill by sound/species (interaction) and facet wrap or grid by month
-stomachClayplot <- ggplot(stomach.1, aes(x = prey_description, y = CountPrey, fill = Month)) +
+
+# dynamically create the number of stomachs
+numstomach <- stomach.1 %>%
+  select(fish_id) %>%
+  distinct() %>%
+  nrow()
+
+# EA added facts by months and fill by sound according to your notes
+# feel free to modify according to your idea
+
+ggplot(filter(stomach.1, !is.na(sound)), aes(x = prey_description, y = CountPrey, fill = sound)) +
   geom_bar(stat = "identity") +
   xlab("Prey item") +
   ylab("Number of fish") +
-  ggtitle("Clayoquot Sound Chinook Stomach Contents (n=19)") +
+  ggtitle(str_c("Contents of Juvenile Salmon Stomachs (n=", numstomach, ")")) +
   #scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
-  scale_fill_viridis_d()
-
-stomachClayplot
+  scale_fill_viridis_d() +
+  coord_flip() +
+  theme(strip.background = element_rect(fill = "white")) +
+  facet_wrap(~Month)
 
 ```
 
@@ -543,10 +619,9 @@ knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralar
 ```
 
 
-
 ## Other Data
 
-After samples are transported to the Pacific Biological Station, lab anaylsis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
+After samples are transported to the Pacific Biological Station, lab analysis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
 
 ```{r sampleTable}
 
