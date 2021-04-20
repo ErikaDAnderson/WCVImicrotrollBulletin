@@ -63,21 +63,15 @@ site <- site_orig %>%
   filter(!is.na(date)) %>%
   # remove default date given by excel in background
   mutate(time = str_sub(time, -8, -1),
-         datetime = ymd_hms(str_c(date, time, sep = " "))) %>%
-#************************************* remove once unique keys are fixed*************************************
-  filter(is_unique == TRUE)
+         datetime = ymd_hms(str_c(date, time, sep = " ")))
 
 sets <- sets_orig %>%
-  mutate(end_time = str_sub(end_time, -8, -1)) %>%
-#************************************* remove once unique keys are fixed*************************************
-  filter(is_unique == TRUE)
+  mutate(end_time = str_sub(end_time, -8, -1)) 
 
 ocean <- ocean_orig %>%
   mutate(time = str_sub(time, -8, -1))
 
-fish <- fish_orig %>%
-#************************************* remove once unique keys are fixed*************************************
-    filter(is_unique == TRUE)
+fish <- fish_orig 
 
 stomach <- stomach_orig
 
@@ -87,6 +81,7 @@ stomachLU <- stomachLU_orig
 overallStartDate <- format(min(site$date, na.rm = TRUE), "%b. %d, %Y")
 overallEndDate <- format(max(site$date, na.rm = TRUE), "%b. %d, %Y")
 numDaysFished <- site %>% select(date, sound) %>% distinct() %>% nrow()
+numBoatDaysFished <- site %>% select(date, sound, vessel) %>% distinct() %>% nrow()
 soundsSampled <- unique(site$sound) %>% str_to_title() %>% sort()
 ckCaught <- fish %>% filter(toupper(species) == "CN") %>% nrow()
 coCaught <- fish %>% filter(toupper(species) == "CO") %>% nrow()
@@ -98,15 +93,19 @@ clinicalSamples <- fish %>% filter(frozen_random_clinical == "clinical") %>% nro
 
 ## Data Collected
 
-This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
+This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
 
 ```{r dataCollected}
 #JB March 24 2021 added in number of days fished/sound/month
 
 sumfish <- sets %>%
-  full_join(., site, by = "site_id") %>%
+  # note -> use full join to find missing sets
+  # found 5 missing s WCVI_v1.1_8Apr2021.xlsx
+  inner_join(., site, by = "site_id") %>%
   select(sound, site_id, fishingset_id, date) %>%
-  full_join(., fish, by = "fishingset_id") %>%
+  # check number results match number of sets
+  # if grouped by count of fishingsite_id
+  left_join(., fish, by = "fishingset_id") %>%
   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
          sound = str_to_title(sound)) %>%
   mutate(DAY_DISPLAY = day(date),
@@ -277,165 +276,10 @@ kableExtra::kable(sumfish,
 There are two maps per sound showing juvenile chinook and coho salmon catch per unit effort (salmon/hook) per fishing set. The circles are proportional to the amount of catch i.e. the more fish caught, the bigger the circles.  The black crosses represents fishing events with no catch.  
 
 ```{r maps, message = FALSE}
-
-mapdf <- site %>%
-  full_join(., sets, by = c("site_id", "timezone")) %>%
-  full_join(., fish, by = "fishingset_id")
-
-# create function to map each sound sampled
-mapSoundfn <- function(soundName, mapdf, resolution) {
-  
-df <- mapdf %>%
-  filter(sound == toupper(soundName)) %>%
-  filter(!(is.na(start_latitude))) %>%
-  filter(!(is.na(start_longitude))) %>%
-  group_by(fishingset_id, start_latitude, start_longitude, 
-           end_latitude, end_longitude, hook_depth_min, hook_depth_max,
-           hooks_used, species) %>%
-  summarize(hooks = sum(hooks_used, na.rm = TRUE),
-            catch = n(),
-            catchByhook = catch/hooks,
-            .groups = 'drop')
-
-# use standard min and max lat and longs for limits to basemap for each sound
-# add Kyuquot and Nootka when fishing starts
-if (soundName == "CLAYOQUOT") {
-  minLat <- 49.1
-  maxLat <- 49.5
-  minLon <- -126.3
-  maxLon <- -125.7
-}
-
-if (soundName == "QUATSINO") {
-  minLat <- 50.45
-  maxLat <- 50.65
-  minLon <- -127.8
-  maxLon <- -127.3
-}
-
-if (soundName == "BARKLEY") {
-  minLat <- 48.75
-  maxLat <- 49.1
-  minLon <- -125.5
-  maxLon <- -124.9
-}
-
-if (soundName == "NOOTKA") {
-  minLat <- 49.5
-  maxLat <- 49.85
-  minLon <- -126.8
-  maxLon <- -126.0
-}
-
-# modify this when data comes in
-if (soundName == "KYUQUOT") {
-  minLat <- 49.9
-  maxLat <- 50.2
-  minLon <- -127.4
-  maxLon <- -127.0
-}
-
-# df for each species
-df_ck <- df %>% filter(species == "CN" | is.na(species))
-df_co <- df %>% filter(species == "CO" | is.na(species))
-
-
-##  Mapping data from bcmaps
-bcn <- bc_neighbours()
-bcn <- bcn %>% st_transform(4326)
-bcn1 <- bcn %>%
-  filter(name != "British Columbia") %>%  
-  filter(name != "Pacific Ocean")
-
-if (resolution == "high") {
-  
-bchigh <- bc_bound_hres()
-bchigh <- bchigh %>% st_transform(4326)
-
-#use for high res map sucha s for final
-basemap <- ggplot() +
- geom_sf(data = bchigh, fill = "lightyellow1") +
- geom_sf(data = bcn1) +
- xlim(minLon, maxLon) +
- ylim(minLat, maxLat) +
- xlab("Longitude") + ylab("Latitude") +
- theme_bw() #+
-# theme(panel.background = element_rect(fill = "lightcyan2"))
-  } 
-
-if (resolution == "low") {
-  
-bclow <- bc_bound()
-bclow <- bclow %>% st_transform(4326)
-
-#low res version of bcmaps - good for quicker drafts
-basemap <- ggplot() +
-  geom_sf(data = bclow, fill = "lightyellow1") +
-  geom_sf(data = bcn1) +
-  xlim(minLon, maxLon) +
-  ylim(minLat, maxLat) +
-  xlab("Longitude") + 
-  ylab("Latitude") +
-  theme_bw() 
-
-}
-
-map_ck <- basemap +
-    geom_point(data = filter(df_ck, is.na(species)),
-             aes(start_longitude, start_latitude),
-             shape = 3) +
-      geom_point(data = filter(df_ck, !(is.na(species))),
-             aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.5) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank()
-        #,
-        #legend.position = "bottom"
-        ) +
-  labs(size = "Salmon \nper Hook",
-       subtitle = "Chinook") +
-  scale_size_continuous(breaks = c(0.15, 0.20, 0.25, 0.30))
-
-map_co <- basemap +
-    geom_point(data = filter(df_co, is.na(species)),
-             aes(start_longitude, start_latitude),
-             shape = 3) +
-      geom_point(data = filter(df_co, !(is.na(species))),
-             aes(start_longitude, start_latitude, size = catchByhook),
-             color = "darkred", alpha = 0.5) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        legend.position = "none") + # when there are more coho confirm that scales are same
-  labs(size = "Salmon \nper Hook",
-       subtitle = "Coho") +
-  scale_size_continuous(breaks = c(0.15, 0.20,0.25, 0.30))
-
-plottitle <- str_c(str_to_title(soundName), "Sound", sep = " ")
-
-map_ck + map_co + plot_annotation(title = plottitle)
-
-}
-
-## future addition to run through all sounds in dataset
-#sound_vec <- unique(site$sound)
-#allMaps <- sound_vec %>%
-#  map(mapSoundfn, mapdf = mapdf, resolution = "low")
-
-# create Figure folder if it doesn't exist yet
-if (!dir.exists("Figures")) dir.create("Figures")
-
-# # run these once with new data then comment out to knit since long
-# # create maps individually and save at lower resolution
-# clayoquotMap <- mapSoundfn("CLAYOQUOT", mapdf, "high")
-# ggsave("clayoquotMap.png", clayoquotMap, path = "Figures", height = 4, units = "in", dpi = 300)
-# quatsinoMap <- mapSoundfn("QUATSINO", mapdf, "high")
-# ggsave("quatsinoMap.png", quatsinoMap, path = "Figures", height = 3, units = "in", dpi = 300)
-# barkleyMap <- mapSoundfn("BARKLEY", mapdf, "high")
-# ggsave("barkleyMap.png", barkleyMap, path = "Figures", height = 3.5, units = "in", dpi = 300)
-# nootkaMap <- mapSoundfn("NOOTKA", mapdf, "high")
-# ggsave("nootkaMap.png", nootkaMap, path = "Figures", height = 3, units = "in", dpi = 300)
-# kyuquotMap <- mapSoundfn("KYUQUOT", mapdf, "high")
-# ggsave("kyuquotMap.png", kyuquotMap, path = "Figures", height = 3, units = "in", dpi = 300)
+# use R script Rmaps.R to create new maps
+# QC the coordinates in that script to find errors
+# maps in Figures folder will allow this report to be generated
+# make sure you are not using old maps though
 
 ```
 
@@ -496,7 +340,9 @@ The Chinook Salmon lengths and weights are graphed below.
 
 ```{r forkfn}
 
-lengthFreq <- mapdf %>%
+lengthFreq <- site %>%
+  full_join(., sets, by = c("site_id", "timezone")) %>%
+  full_join(., fish, by = "fishingset_id") %>%
   select(sound, fish_id, species, fork_length_mm, fresh_weight_g) %>%
   filter(!(is.na(fish_id))) 
 
@@ -518,7 +364,7 @@ df.LW <- thisdf %>%
 
 # graph length frequency
 dfbar <- ggplot(df.LW) +
-  geom_histogram(aes(fork_length_mm), binwidth = 5) +
+  geom_histogram(aes(fork_length_mm), binwidth = 1) +
   labs(x = "Length (mm)",
        y = "Count") +
   theme_bw() 
