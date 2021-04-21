@@ -287,10 +287,11 @@ The following maps show juvenile chinook and coho salmon catch in counts of salm
 # use R script mapSounds.R to create new maps
 # QC the coordinates in that script to find errors
 # having maps in Figures folder are needed to allow this report to be generated
+
 # make sure you are not using old maps :)
 # delete/move older maps from the Figures folder
-# may need to crop some maps if they are inappropriately sized
-# how to fix size for variable number of maps?
+# I cropped some maps in paint as a quick fix
+# future fix -> fix size for variable number of facets?
 
 ```
 
