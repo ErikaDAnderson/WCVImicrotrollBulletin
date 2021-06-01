@@ -31,6 +31,7 @@ library(cowplot) # figure arrangement
 library(fuzzyjoin)
 library(reprex)
 library(SwimmeR)
+library(tidyr) #reshaping data for plotting
 
 # by default, do not show R code
 knitr::opts_chunk$set(echo = FALSE)
@@ -95,13 +96,15 @@ ckCaught <- fish %>% filter(toupper(species) == "CN") %>% nrow()
 coCaught <- fish %>% filter(toupper(species) == "CO") %>% nrow()
 randomSamples <- fish %>% filter(frozen_random_clinical == "random") %>% nrow()
 clinicalSamples <- fish %>% filter(frozen_random_clinical == "clinical") %>% nrow()
+CkRecapture <- fish %>% filter(recaptured_yn == "Y") %>% nrow()
+
                    
 ```
 
 
 ## Data Collected
 
-This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station.
+This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station. There was `r CkRecapture` chinook caught that was a recapture during this project.
 
 ```{r dataCollected}
 #JB March 24 2021 added in number of days fished/sound/month
@@ -120,8 +123,12 @@ sumfish <- sets %>%
          sound = str_to_title(sound)) %>%
   group_by(MONTH_DISPLAY, sound) %>%
   summarize(DaysFished = n_distinct(DAY_DISPLAY),
-            ckCatch = sum(species == "CN", na.rm = TRUE),
-            coCatch = sum(species == "CO", na.rm = TRUE),
+            ckCatchclipped = sum(species == "CN" & adipose_clip_yn=="Y", na.rm = TRUE),
+            ckCatchunclipped = sum(species == "CN" & adipose_clip_yn=="N", na.rm = TRUE),
+            ckCatchununk = sum(species == "CN" & is.na(adipose_clip_yn), na.rm=T),
+            coCatchclipped = sum(species == "CO" & adipose_clip_yn=="Y", na.rm = TRUE),
+            coCatchunclipped = sum(species == "CO" & adipose_clip_yn=="N", na.rm = TRUE),
+            coCatchununk = sum(species == "CO" & is.na(adipose_clip_yn), na.rm=T),
             numRandom = sum(frozen_random_clinical == "random", na.rm = TRUE),
             numClinical = sum(frozen_random_clinical == "clinical", na.rm = TRUE),
             .groups = "drop") %>%
@@ -137,148 +144,196 @@ sumfish <- sets %>%
   select(-MONTH_ORDER)
 
 kableExtra::kable(sumfish,
-                  col.names = c("Month", "Location", "Days Fished", "Chinook", "Coho", "Random", "Clinical"),
+                  col.names = c("Month", "Location", "Days Fished", "AD Clipped CN", "Unclipped CN","Unk CN", "AD Clipped CO", "Unclipped CO", "Unk CO", "Random", "Clinical"),
                   booktabs = TRUE,
-                  caption = "Summary of Salmon Caught and Samples Collected") %>%
-  kable_styling() %>%
-  add_header_above(c(" " = 3, "Catch" = 2, "Samples" = 2))
+                  caption = "Summary of Salmon Caught and Samples Collected. Acronymns include AD = adipose fin, CN = chinook, CO = coho, and Unk = unknown.") %>%
+  kable_styling(latex_options="scale_down") %>%
+  add_header_above(c(" " = 3, "Catch" = 6, "Samples" = 2))
+
+#Non-targeted catch table 
+sumfish_bycatch <- sets %>%
+  # note -> use full join to find missing sets
+  # found 5 missing s WCVI_v1.1_8Apr2021.xlsx
+  inner_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date) %>%
+  # check number results match number of sets
+  # if grouped by count of fishingsite_id
+  left_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  group_by(MONTH_DISPLAY, sound) %>%
+  summarize(DaysFished = n_distinct(DAY_DISPLAY),
+            LingcodCatch = sum(species == "LINGCOD", na.rm = TRUE),
+            PacificHerringCatch = sum(species == "PACIFIC HERRING", na.rm = TRUE),
+            CanaryRockfishCatch = sum(species == "CANARY ROCKFISH", na.rm = TRUE),
+            CopperRockfishCatch = sum(species == "COPPER ROCKFISH", na.rm = TRUE),
+            QuillbackRockfishCatch = sum(species == "QUILLBACK ROCKFISH", na.rm = TRUE),
+            SilvergrayRockfishCatch = sum(species == "SILVERGRAY ROCKFISH", na.rm = TRUE),
+            TigerRockfishCatch = sum(species == "TIGER ROCKFISH", na.rm = TRUE),
+            YellowtailRockfishCatch = sum(species == "YELLOWTAIL ROCKFISH", na.rm = TRUE),
+            UnkRockfishCatch = sum(species == "UNK ROCKFISH", na.rm = TRUE),
+            unkFlatfishCatch = sum(species == "UNK FLATFISH", na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(MONTH_ORDER = case_when(
+    MONTH_DISPLAY == "Oct" ~ 1,
+    MONTH_DISPLAY == "Nov" ~ 2,
+    MONTH_DISPLAY == "Dec" ~ 3,
+    MONTH_DISPLAY == "Jan" ~ 4,
+    MONTH_DISPLAY == "Feb" ~ 5,
+    MONTH_DISPLAY == "Mar" ~ 6,
+  )) %>%
+  arrange(MONTH_ORDER) %>%
+  select(-MONTH_ORDER)
 
 
-# #Temporal spread of fishing Events Figure broken down by stat week
-# #JB working on 
-# 
-# #fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
-# TemporalPlot <- sets %>%
-#   full_join(., site, by = "site_id") %>%
-#   select(sound, site_id, fishingset_id, date, start_time) %>%
-#   full_join(., fish, by = "fishingset_id") %>%
-#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DAY_DISPLAY = day(date),
-#          sound = str_to_title(sound)) %>%
-#   mutate(Year = lubridate::year(date),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DOY = lubridate::yday(date),
-#          sound = str_to_title(sound)) %>%
-# mutate(DayTime = lubridate::hour(start_time),
-#          sound = str_to_title(sound)) %>%
-#   mutate(BinaryTime = case_when(
-#     DayTime %in% 0:11 ~ "AM",
-#     DayTime %in% 12:23 ~ "PM"
-#     )) %>%
-#   add_column(DaysFished = 1)%>%
-#   replace_na(list(BinaryTime="Unknown"))%>%
-#   distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
-# 
-# StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
-# StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
-# 
-# #make sure dates are in the correct format
-# #have to be in yyyy/mm/dd for formatting with lubridate to work
-# StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
-# StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
-# 
-# TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
-#                 by = c("date"="DateStart", "date"="DateEnd"),
-#                 match_fun = list(`>=`, `<=`)) %>% 
-#   select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
-# 
-# statweekspermonth <- StatWeekLU %>%
-#   group_by(Month) %>%
-#   summarize(totalstatweeks=n_distinct(StatWeekLU),
-#             .groups = "drop")
-# 
-# 
-# #table for how many blank rows that need to be added 
-# #this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
-# #Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
-# #recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
-# TemporalPlot2 <- TemporalPlot1 %>%
-#   group_by(sound, Month) %>%
-#   summarize(n = n_distinct(StatWeekLU),
-#             .groups = "drop") %>%
-# left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
-#    group_by(sound, Month) %>%
-# summarize(missingweeks = totalstatweeks - n,
-#           .groups = "drop")
-# 
-# #need to automate this still, need to work on
-# TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
-# add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", "11", "12", "13", "15", "32", "33", "34", "111", "112", "113", "21", "22", "11", "12", "13", "15", "11", "12", "13", "14", "32", "33", "34"))%>%
-#   add_column(Year=c(rep(2021, 3), rep(2020,4), rep(2021, 9), rep(2020, 3), rep(2021, 13)))
-# 
-# 
-#  TemporalPlot3 <- TemporalPlot1 %>%
-#    add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0) 
-#  #this now has the blank rows for plotting
-#  
-#  TemporalPlot4 <- TemporalPlot3 %>%
-#   group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime) 
-#  TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
-# 
-# 
-#  #Figures of the number of fishing days across sounds/year across statistical weeks
-# P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-# geom_bar(stat="identity") +
-#   xlab("Statistical Week") +
-#   ylab("Days Fished") +
-#   ggtitle("2020") +
-#   scale_fill_manual(values = "lightblue3")
-# 
-# 
-# P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-# geom_bar(stat = "identity") +
-#   xlab("Statistical Week") +
-#    scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-#     ylab("Days Fished") +
-#   ggtitle("2021") +
-#   scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
-# 
-#  
-# #coloured by AM vs PM fishing days
-# #I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week 
-# P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
-# geom_bar(stat="identity")+
-#   xlab("Statistical Week")+
-#     ylab("Days Fished")+
-#   ggtitle("2020")+
-#    scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-# 
-# 
-# P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
-# geom_bar(stat="identity")+
-#   xlab("Statistical Week")+
-#   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-#     ylab("Days Fished")+
-#   ggtitle("2021")+
-#   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-# 
-# 
-# P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
-#           , P2 + theme(legend.position = "none"))
-# 
-# P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
-#           , P4 + theme(legend.position = "none" ))
-# 
-#    legendP1P2 <- get_legend(P2 + 
-#     guides(color = guide_legend(nrow = 2)) +
-#     theme(legend.position = "bottom", legend.title = element_blank()))  
-#    
-#    legendP3P4 <- get_legend(P4 + 
-#     guides(color = guide_legend(nrow = 2)) +
-#     theme(legend.position = "bottom",legend.title = element_blank()))   
-# 
-#   
-#   DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
-#   FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
-#   
-#   DaysFished
-#   
-#   FishingTime
-  
+kableExtra::kable(sumfish_bycatch,
+                  col.names = c("Month", "Location", "Days Fished", "Lingcod", "Pacific Herring", "Canary RF", "Copper RF","Quillback RF", "SilverGray RF", "Tiger RF", "Yellowtail RF", "Unk RF", "Unk FF"), booktabs = TRUE, caption = "Summary of non-targeted catch. Acronymns include RF = Rockfish, Unk = Unknown, and FF = Finfish.") %>%
+  kable_styling(latex_options="scale_down", font_size = 10) %>%
+  add_header_above(c(" " = 3, "Catch" = 10))
 ```
 
-  
+```{r FishingSetDetails, fig.align = 'center', fig.cap = "Spread of fishing ays across statistical weeks and locations"}
+#Temporal spread of fishing Events Figure broken down by stat week
+#JB still need to automate
+
+#fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
+TemporalPlot <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date, start_time) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  mutate(Year = lubridate::year(date),
+         sound = str_to_title(sound)) %>%
+  mutate(DOY = lubridate::yday(date),
+         sound = str_to_title(sound)) %>%
+mutate(DayTime = lubridate::hour(start_time),
+         sound = str_to_title(sound)) %>%
+  mutate(BinaryTime = case_when(
+    DayTime %in% 0:11 ~ "AM",
+    DayTime %in% 12:23 ~ "PM"
+    )) %>%
+  add_column(DaysFished = 1)%>%
+  replace_na(list(BinaryTime="Unknown"))%>%
+  distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
+
+StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
+StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
+
+#make sure dates are in the correct format
+#have to be in yyyy/mm/dd for formatting with lubridate to work
+StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
+StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
+
+TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU),
+                by = c("date"="DateStart", "date"="DateEnd"),
+                match_fun = list(`>=`, `<=`)) %>%
+  select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
+
+statweekspermonth <- StatWeekLU %>%
+  group_by(Month) %>%
+  summarize(totalstatweeks=n_distinct(StatWeekLU),
+            .groups = "drop")
+
+#table for how many blank rows that need to be added
+#this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
+#Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
+#recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
+TemporalPlot2 <- TemporalPlot1 %>%
+  group_by(sound, Month) %>%
+  summarize(n = n_distinct(StatWeekLU),
+            .groups = "drop") %>%
+left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
+   group_by(sound, Month) %>%
+summarize(missingweeks = totalstatweeks - n,
+          .groups = "drop") %>%
+  filter(!missingweeks=="0")
+View(TemporalPlot2)
+#need to automate this still, need to work on
+TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
+add_column(StatWeek= c("22", "23", "122", "123", "124", "125","21", "22","11", "12", "13", "15", "32", "33","111", "112", "113", "31", "32","21", "22","11", "12", "13", "15","11", "12", "13","14", "32", "33", "34"))%>%
+  add_column(Year=c(rep(2021,2), rep(2020,4), rep(2021,2), rep(2021,4), rep(2021,2), rep(2020,3), rep(2021,2), rep(2021,2), rep(2021,4), rep(2021,4), rep(2021,3)))
+                    
+   
+
+ TemporalPlot3 <- TemporalPlot1 %>%
+   add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0)
+ #this now has the blank rows for plotting
+
+ TemporalPlot4 <- TemporalPlot3 %>%
+  group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime)
+ TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
+
+ #Figures of the number of fishing days across sounds/year across statistical weeks
+P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat="identity") +
+  xlab("Statistical Week") +
+  ylab("Days Fished") +
+  ggtitle("2020") +
+scale_fill_manual(values="#39568CFF")
+
+
+P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat = "identity") +
+  xlab("Statistical Week") +
+   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished") +
+  ggtitle("2021") +
+  scale_fill_manual(values = c("Barkley"="#440154FF", "Clayoquot" = "#39568CFF", "Nootka" = "#1F968BFF", "Quatsino" = "#FDE725FF", "Kyuquot"="#55C667FF"))
+
+#coloured by AM vs PM fishing days
+#I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week
+P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+    ylab("Days Fished")+
+   scale_fill_manual(values = c("AM"="#FDE725FF", "PM"="#440154FF", "Unknown"="gray48"))
+
+
+P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+  scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished")+
+  ggtitle("2021")+
+  scale_fill_manual(values = c("AM"="#FDE725FF", "PM"="#440154FF", "Unknown"="gray48"))
+
+
+P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
+          , P2 + theme(legend.position = "none"))
+
+P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
+          , P4 + theme(legend.position = "none" ))
+
+   legendP1P2 <- get_legend(P2 +
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom", legend.title = element_blank()))
+
+   legendP3P4 <- get_legend(P4 +
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom",legend.title = element_blank()))
+
+  DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
+  FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
+
+  DaysFished
+
+```
+
+
+
+
+
+```{r FishingSetDetails2, fig.align = 'center', fig.cap = "Spread of fishing days ocurring in the AM and PM across locations"}
+
+FishingTime
+
+
+``` 
 ## Maps
 
 The following maps show juvenile chinook and coho salmon catch in counts of salmon. The black crosses represents fishing events with no catch.  
@@ -295,7 +350,7 @@ The following maps show juvenile chinook and coho salmon catch in counts of salm
 
 ```
 
-```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Chinock Salmon Catch and Fishing Effort"}
+```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Chinook Salmon Catch and Fishing Effort"}
 
 quatsinoMapNameCK <- here::here("Figures", "QuatsinoCKmap.png")
 
@@ -315,7 +370,7 @@ knitr::include_graphics(quatsinoMapNameCO)
   
 ```
 
-```{r kyuquotMapCK, fig.align = 'center', fig.cap = "Kyuquot Sound Chinock Salmon Catch and Fishing Effort"}
+```{r kyuquotMapCK, fig.align = 'center', fig.cap = "Kyuquot Sound Chinook Salmon Catch and Fishing Effort"}
 
 kyuquotMapNameCK <- here::here("Figures", "KyuquotCKmap.png")
 
@@ -335,7 +390,7 @@ knitr::include_graphics(kyuquotMapNameCO)
 
 ```
 
-```{r nootkaMapCK, fig.align = 'center', fig.cap = "Nootka Sound Chinock Salmon Catch and Fishing Effort"}
+```{r nootkaMapCK, fig.align = 'center', fig.cap = "Nootka Sound Chinook Salmon Catch and Fishing Effort"}
 
 nootkaMapNameCK <- here::here("Figures", "NootkaCKmap.png")
 
@@ -355,7 +410,7 @@ knitr::include_graphics(nootkaMapNameCO)
 
 ```
 
-```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Chinock Salmon Catch and Fishing Effort"}
+```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Chinook Salmon Catch and Fishing Effort"}
 
 clayoquotMapNameCK <- here::here("Figures", "ClayoquotCKmap.png")
 
@@ -375,7 +430,7 @@ knitr::include_graphics(clayoquotMapNameCO)
 
 ```
 
-```{r barkleyMapCK, fig.align = 'center', fig.cap = "Barkley Sound Chinock Salmon Catch and Fishing Effort"}
+```{r barkleyMapCK, fig.align = 'center', fig.cap = "Barkley Sound Chinook Salmon Catch and Fishing Effort"}
 
 barkleyMapNameCK <- here::here("Figures", "BarkleyCKmap.png")
 
@@ -571,10 +626,7 @@ stomach.1 <- stomach %>%
   mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
   mutate(CountPrey = 1) # making a column to plot counts, this will include prey that appear in multiple fish
 #n_distinct(stomach.1$fish_id) #19 fish represented here
-
-#could organize this by stat week and show prey items across weeks - summarizing by stat week is not very intuitive to me
-#since some stat weeks include days from two months
-
+View(stomach.1)
 # EA - order factor by months over winter
 stomach.1$Month <- factor(stomach.1$Month,
                              levels = c("Sep", "Oct", "Nov", "Dec",
@@ -598,6 +650,7 @@ numstomach <- stomach.1 %>%
 
 # EA added facts by months and fill by sound according to your notes
 # feel free to modify according to your idea
+#JB looks nice, adding stat week resolution not needed 
 
 ggplot(filter(stomach.1, !is.na(sound)), aes(x = prey_description, y = CountPrey, fill = sound)) +
   geom_bar(stat = "identity") +
@@ -616,6 +669,88 @@ ggplot(filter(stomach.1, !is.na(sound)), aes(x = prey_description, y = CountPrey
 
 # load image
 knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralarva.jpg"))
+
+```
+## Observed Clinical Signs
+
+Preliminary information on clinical signs observed in caught juvenile salmon are shown below. Clinical signs categorized as "other" in the field are further broken down with field crew's descriptions. 
+
+```{r clinical, fig.height = 3, fig.cap="Observed clinical signs in caught juvenile chinook salmon."}
+
+# Could use a Venn diagram for this,but may not relay informaiton as well as the below graph and is nit picky to format
+
+#Figure of observed clinical signs across sounds and months
+clinical <- fish %>%
+  left_join(., sets, by = "fishingset_id") %>%
+  select(fish_id, fishingset_id, species, hemorrhages_yn, erosion_rot_yn, ulcers_yn, excess_mucous_yn, gills_pale_yn, gills_erosion_yn, gills_whitespots_yn, other_clinical_yn, comments_field) %>%
+   left_join(., sets, by = "fishingset_id") %>%
+  left_join(., site, by = "site_id") %>%
+  select(sound, date, fish_id, site_id, fishingset_id,species, hemorrhages_yn, erosion_rot_yn, ulcers_yn, excess_mucous_yn, gills_pale_yn, gills_erosion_yn, gills_whitespots_yn, other_clinical_yn, comments_field)%>%
+  mutate(Month = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
+filter(!is.na(Month)) %>% #removed 14 rows with an NA date
+filter(!comments_field=="DROPPED. TATTERED DORSAL", !comments_field=="BOUNCED") #removing these other_clinical_y_ns signs, these were injuries that came about post capture- hanlding injury
+#note that any "other_clinical_y_n" observations with an NA for the comments are removed in this code (default of filter I think, this is fine we can't confirm if a clinical sign is realyl clinical if no comment was given)
+
+View(clinical)
+# As above order factors by month
+clinical$Month <- factor(clinical$Month,
+                             levels = c("Sep", "Oct", "Nov", "Dec",
+                                       "Jan", "Feb", "Mar", "Apr", "May"))
+
+
+#reshaping to long format from wide for plotting
+clinical.1 <- clinical %>%
+  select(sound, fish_id, species, Month, hemorrhages_yn, erosion_rot_yn, ulcers_yn, excess_mucous_yn, gills_pale_yn, gills_erosion_yn, gills_whitespots_yn, other_clinical_yn ) %>%
+gather(sign, y_n, 5:12) %>%
+filter(!is.na(y_n)) %>%
+filter(y_n=="Y") %>%
+mutate(CountClinical = 1)
+
+numclinical <- clinical.1 %>%
+  select(fish_id) %>%
+  distinct() %>%
+  nrow()
+#65 fish
+
+
+ggplot(clinical.1, aes(x = sign, y = CountClinical, fill = sound)) +
+  geom_bar(stat = "identity") +
+  xlab("Clinical Sign") +
+  ylab("Number of fish") +
+  ggtitle(str_c("Observed clinical signs in caught juvenile salmon (n=", numclinical, ")")) +
+  #scale_fill_manual(values = c("Nov" = "gray48", "Dec" = "gray85"))
+  scale_fill_viridis_d() +
+  coord_flip() +
+  theme(strip.background = element_rect(fill = "white")) +
+  facet_wrap(~Month)
+
+#looking at what the "other clinical y_n" comments are
+clinical.other <- clinical %>%
+  filter(other_clinical_yn=="Y") %>%
+  select(sound, fish_id, species, Month,other_clinical_yn, comments_field)
+View(clinical.other)
+
+#for now I will add in a column describing the injury - we need a good way to automate this for the future to show this data
+clinical.other <-clinical.other %>%
+mutate(other=c("Scarring", "Eye Injury","Split Fin", "Skin Lesion", "Scarring","Scarring","Scarring", "Scale Damage", "Split Fin", "Split Fin", "Lesions & Scarring", "Parasite", "Scale Loss")) %>%
+  mutate(CountOther = 1)
+
+numclinicalother <- clinical.other %>%
+  select(fish_id) %>%
+  distinct() %>%
+  nrow()
+
+ggplot(clinical.other, aes(x = other, y = CountOther, fill = sound)) +
+  geom_bar(stat = "identity") +
+  xlab("Clinical sign description") +
+  ylab("Number of fish") +
+  ggtitle(str_c("'Other' clinical signs observed in caught juvenile salmon (n=", numclinicalother, ")")) +
+  scale_fill_viridis_d() +
+  coord_flip() +
+  theme(strip.background = element_rect(fill = "white")) +
+  facet_wrap(~Month)
 
 ```
 
