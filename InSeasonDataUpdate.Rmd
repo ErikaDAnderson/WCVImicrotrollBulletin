@@ -104,7 +104,7 @@ CkRecapture <- fish %>% filter(recaptured_yn == "Y") %>% nrow()
 
 ## Data Collected
 
-This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station. There was `r CkRecature` Chinook caught that was a recapture during this project.
+This section summarizes the data collected from `r overallStartDate` to `r overallEndDate`. There were `r numDaysFished` days fished (`r numBoatDaysFished` vessel days) in total within the following sounds: `r soundsSampled`. In total, there were `r ckCaught` chinook and `r coCaught` coho caught. In addition, there were `r randomSamples` random samples and `r clinicalSamples` clinical samples frozen for transport to the Pacific Biological Station. There was `r CkRecapture` chinook caught that was a recapture during this project.
 
 ```{r dataCollected}
 #JB March 24 2021 added in number of days fished/sound/month
@@ -144,10 +144,10 @@ sumfish <- sets %>%
   select(-MONTH_ORDER)
 
 kableExtra::kable(sumfish,
-                  col.names = c("Month", "Location", "Days Fished", "AD Clipped Chinook", "AD Unclipped Chinook","Unknown Chinook", "AD Clipped Coho", "AD Unclipped Coho", "Unknown Coho", "Random", "Clinical"),
+                  col.names = c("Month", "Location", "Days Fished", "AD Clipped CN", "Unclipped CN","Unk CN", "AD Clipped CO", "Unclipped CO", "Unk CO", "Random", "Clinical"),
                   booktabs = TRUE,
-                  caption = "Summary of Salmon Caught and Samples Collected") %>%
-  kable_styling() %>%
+                  caption = "Summary of Salmon Caught and Samples Collected. Acronymns include AD = adipose fin, CN = chinook, CO = coho, and Unk = unknown.") %>%
+  kable_styling(latex_options="scale_down") %>%
   add_header_above(c(" " = 3, "Catch" = 6, "Samples" = 2))
 
 #Non-targeted catch table 
@@ -189,13 +189,14 @@ sumfish_bycatch <- sets %>%
 
 
 kableExtra::kable(sumfish_bycatch,
-                  col.names = c("Month", "Location", "Days Fished", "Lingcod", "Pacific Herring", "Canary Rockfish", "Copper Rockfish","Quillback Rockfish", "SilverGray Rockfish", "Tiger Rockfish", "Yellowtail Rockfish", "Unknown Rockfish", "Unknown Finfish"), booktabs = TRUE, caption = "Summary of non-targeted catch") %>%
-  kable_styling() %>%
+                  col.names = c("Month", "Location", "Days Fished", "Lingcod", "Pacific Herring", "Canary RF", "Copper RF","Quillback RF", "SilverGray RF", "Tiger RF", "Yellowtail RF", "Unk RF", "Unk FF"), booktabs = TRUE, caption = "Summary of non-targeted catch. Acronymns include RF = Rockfish, Unk = Unknown, and FF = Finfish.") %>%
+  kable_styling(latex_options="scale_down", font_size = 10) %>%
   add_header_above(c(" " = 3, "Catch" = 10))
+```
 
-
+```{r FishingSetDetails, fig.align = 'center', fig.cap = "Spread of fishing ays across statistical weeks and locations"}
 #Temporal spread of fishing Events Figure broken down by stat week
-#JB working on
+#JB still need to automate
 
 #fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
 TemporalPlot <- sets %>%
@@ -238,7 +239,6 @@ statweekspermonth <- StatWeekLU %>%
   summarize(totalstatweeks=n_distinct(StatWeekLU),
             .groups = "drop")
 
-View(TemporalPlot1)
 #table for how many blank rows that need to be added
 #this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
 #Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
@@ -260,7 +260,6 @@ add_column(StatWeek= c("22", "23", "122", "123", "124", "125","21", "22","11", "
                     
    
 
-
  TemporalPlot3 <- TemporalPlot1 %>%
    add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0)
  #this now has the blank rows for plotting
@@ -268,7 +267,6 @@ add_column(StatWeek= c("22", "23", "122", "123", "124", "125","21", "22","11", "
  TemporalPlot4 <- TemporalPlot3 %>%
   group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime)
  TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
-
 
  #Figures of the number of fishing days across sounds/year across statistical weeks
 P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
@@ -286,7 +284,6 @@ geom_bar(stat = "identity") +
     ylab("Days Fished") +
   ggtitle("2021") +
   scale_fill_manual(values = c("Barkley"="#440154FF", "Clayoquot" = "#39568CFF", "Nootka" = "#1F968BFF", "Quatsino" = "#FDE725FF", "Kyuquot"="#55C667FF"))
-
 
 #coloured by AM vs PM fishing days
 #I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week
@@ -320,17 +317,23 @@ P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
     guides(color = guide_legend(nrow = 2)) +
     theme(legend.position = "bottom",legend.title = element_blank()))
 
-
   DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
   FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
 
   DaysFished
 
-  FishingTime
-
 ```
 
-  
+
+
+
+
+```{r FishingSetDetails2, fig.align = 'center', fig.cap = "Spread of fishing days ocurring in the AM and PM across locations"}
+
+FishingTime
+
+
+``` 
 ## Maps
 
 The following maps show juvenile chinook and coho salmon catch in counts of salmon. The black crosses represents fishing events with no catch.  
@@ -670,7 +673,7 @@ knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralar
 ```
 ## Observed Clinical Signs
 
-Preliminary information on clinical signs observed in caught juvenile salmon are shown below. Clinical signs categorized as "other" in the field are further broken down with field crew's description. 
+Preliminary information on clinical signs observed in caught juvenile salmon are shown below. Clinical signs categorized as "other" in the field are further broken down with field crew's descriptions. 
 
 ```{r clinical, fig.height = 3, fig.cap="Observed clinical signs in caught juvenile chinook salmon."}
 
