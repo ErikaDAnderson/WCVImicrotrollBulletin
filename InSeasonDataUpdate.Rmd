@@ -187,7 +187,6 @@ sumfish_bycatch <- sets %>%
   arrange(MONTH_ORDER) %>%
   select(-MONTH_ORDER)
 
-View(sumfish_bycatch)
 
 kableExtra::kable(sumfish_bycatch,
                   col.names = c("Month", "Location", "Days Fished", "Lingcod", "Pacific Herring", "Canary Rockfish", "Copper Rockfish","Quillback Rockfish", "SilverGray Rockfish", "Tiger Rockfish", "Yellowtail Rockfish", "Unknown Rockfish", "Unknown Finfish"), booktabs = TRUE, caption = "Summary of non-targeted catch") %>%
@@ -195,138 +194,140 @@ kableExtra::kable(sumfish_bycatch,
   add_header_above(c(" " = 3, "Catch" = 10))
 
 
-# #Temporal spread of fishing Events Figure broken down by stat week
-# #JB working on 
-# 
-# #fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
-# TemporalPlot <- sets %>%
-#   full_join(., site, by = "site_id") %>%
-#   select(sound, site_id, fishingset_id, date, start_time) %>%
-#   full_join(., fish, by = "fishingset_id") %>%
-#   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DAY_DISPLAY = day(date),
-#          sound = str_to_title(sound)) %>%
-#   mutate(Year = lubridate::year(date),
-#          sound = str_to_title(sound)) %>%
-#   mutate(DOY = lubridate::yday(date),
-#          sound = str_to_title(sound)) %>%
-# mutate(DayTime = lubridate::hour(start_time),
-#          sound = str_to_title(sound)) %>%
-#   mutate(BinaryTime = case_when(
-#     DayTime %in% 0:11 ~ "AM",
-#     DayTime %in% 12:23 ~ "PM"
-#     )) %>%
-#   add_column(DaysFished = 1)%>%
-#   replace_na(list(BinaryTime="Unknown"))%>%
-#   distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
-# 
-# StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
-# StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
-# 
-# #make sure dates are in the correct format
-# #have to be in yyyy/mm/dd for formatting with lubridate to work
-# StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
-# StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
-# 
-# TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU), 
-#                 by = c("date"="DateStart", "date"="DateEnd"),
-#                 match_fun = list(`>=`, `<=`)) %>% 
-#   select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
-# 
-# statweekspermonth <- StatWeekLU %>%
-#   group_by(Month) %>%
-#   summarize(totalstatweeks=n_distinct(StatWeekLU),
-#             .groups = "drop")
-# 
-# 
-# #table for how many blank rows that need to be added 
-# #this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
-# #Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
-# #recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
-# TemporalPlot2 <- TemporalPlot1 %>%
-#   group_by(sound, Month) %>%
-#   summarize(n = n_distinct(StatWeekLU),
-#             .groups = "drop") %>%
-# left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
-#    group_by(sound, Month) %>%
-# summarize(missingweeks = totalstatweeks - n,
-#           .groups = "drop")
-# 
-# #need to automate this still, need to work on
-# TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
-# add_column(StatWeek= c("22", "23","34", "122", "123", "124", "125", "21", "22", "11", "12", "13", "15", "32", "33", "34", "111", "112", "113", "21", "22", "11", "12", "13", "15", "11", "12", "13", "14", "32", "33", "34"))%>%
-#   add_column(Year=c(rep(2021, 3), rep(2020,4), rep(2021, 9), rep(2020, 3), rep(2021, 13)))
-# 
-# 
-#  TemporalPlot3 <- TemporalPlot1 %>%
-#    add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0) 
-#  #this now has the blank rows for plotting
-#  
-#  TemporalPlot4 <- TemporalPlot3 %>%
-#   group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime) 
-#  TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
-# 
-# 
-#  #Figures of the number of fishing days across sounds/year across statistical weeks
-# P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-# geom_bar(stat="identity") +
-#   xlab("Statistical Week") +
-#   ylab("Days Fished") +
-#   ggtitle("2020") +
-#   scale_fill_manual(values = "lightblue3")
-# 
-# 
-# P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
-# geom_bar(stat = "identity") +
-#   xlab("Statistical Week") +
-#    scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-#     ylab("Days Fished") +
-#   ggtitle("2021") +
-#   scale_fill_manual(values = c("Barkley"="lightblue1", "Clayoquot" = "lightblue3", "Nootka" = "mediumaquamarine", "Quatsino" = "lightcyan4"))
-# 
-#  
-# #coloured by AM vs PM fishing days
-# #I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week 
-# P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
-# geom_bar(stat="identity")+
-#   xlab("Statistical Week")+
-#     ylab("Days Fished")+
-#   ggtitle("2020")+
-#    scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-# 
-# 
-# P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
-# geom_bar(stat="identity")+
-#   xlab("Statistical Week")+
-#   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
-#     ylab("Days Fished")+
-#   ggtitle("2021")+
-#   scale_fill_manual(values = c("AM"="gray48", "PM"="gray85", "Unknown"="gray24"))
-# 
-# 
-# P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
-#           , P2 + theme(legend.position = "none"))
-# 
-# P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
-#           , P4 + theme(legend.position = "none" ))
-# 
-#    legendP1P2 <- get_legend(P2 + 
-#     guides(color = guide_legend(nrow = 2)) +
-#     theme(legend.position = "bottom", legend.title = element_blank()))  
-#    
-#    legendP3P4 <- get_legend(P4 + 
-#     guides(color = guide_legend(nrow = 2)) +
-#     theme(legend.position = "bottom",legend.title = element_blank()))   
-# 
-#   
-#   DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
-#   FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
-#   
-#   DaysFished
-#   
-#   FishingTime
-  
+#Temporal spread of fishing Events Figure broken down by stat week
+#JB working on
+
+#fishing days, fishing times - categorize as AM vs. PM (stacked bar chart), want x-axis as month and each month 4 possible binned weeks
+TemporalPlot <- sets %>%
+  full_join(., site, by = "site_id") %>%
+  select(sound, site_id, fishingset_id, date, start_time) %>%
+  full_join(., fish, by = "fishingset_id") %>%
+  mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE),
+         sound = str_to_title(sound)) %>%
+  mutate(DAY_DISPLAY = day(date),
+         sound = str_to_title(sound)) %>%
+  mutate(Year = lubridate::year(date),
+         sound = str_to_title(sound)) %>%
+  mutate(DOY = lubridate::yday(date),
+         sound = str_to_title(sound)) %>%
+mutate(DayTime = lubridate::hour(start_time),
+         sound = str_to_title(sound)) %>%
+  mutate(BinaryTime = case_when(
+    DayTime %in% 0:11 ~ "AM",
+    DayTime %in% 12:23 ~ "PM"
+    )) %>%
+  add_column(DaysFished = 1)%>%
+  replace_na(list(BinaryTime="Unknown"))%>%
+  distinct(sound, date, MONTH_DISPLAY, Year, DAY_DISPLAY, DOY, BinaryTime, DaysFished)
+
+StatWeekLU <- read.csv("./Data/StatWeekLU.csv")
+StatWeekLU$StatWeekLU <- as.factor(StatWeekLU$StatWeekLU)
+
+#make sure dates are in the correct format
+#have to be in yyyy/mm/dd for formatting with lubridate to work
+StatWeekLU$DateStart <- lubridate::ymd(StatWeekLU$DateStart)
+StatWeekLU$DateEnd <- lubridate::ymd(StatWeekLU$DateEnd)
+
+TemporalPlot1 <- fuzzy_left_join(TemporalPlot, all_of(StatWeekLU),
+                by = c("date"="DateStart", "date"="DateEnd"),
+                match_fun = list(`>=`, `<=`)) %>%
+  select(sound, Year, Month, DAY_DISPLAY, StatWeekLU, BinaryTime, DaysFished)
+
+statweekspermonth <- StatWeekLU %>%
+  group_by(Month) %>%
+  summarize(totalstatweeks=n_distinct(StatWeekLU),
+            .groups = "drop")
+
+View(TemporalPlot1)
+#table for how many blank rows that need to be added
+#this does not always work because a stat week can have days from two months included, so joining by month can be misleading.
+#Quatsino Feb 28th 2021 actually fall in stat week 31 ("March" statweeks)
+#recoded to use month that is based off statistical weeks rather than by actual month of survey - so the Quatsino survey on Jan 28th now shows as February survey - this will make the plotting easier by stat week
+TemporalPlot2 <- TemporalPlot1 %>%
+  group_by(sound, Month) %>%
+  summarize(n = n_distinct(StatWeekLU),
+            .groups = "drop") %>%
+left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
+   group_by(sound, Month) %>%
+summarize(missingweeks = totalstatweeks - n,
+          .groups = "drop") %>%
+  filter(!missingweeks=="0")
+View(TemporalPlot2)
+#need to automate this still, need to work on
+TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
+add_column(StatWeek= c("22", "23", "122", "123", "124", "125","21", "22","11", "12", "13", "15", "32", "33","111", "112", "113", "31", "32","21", "22","11", "12", "13", "15","11", "12", "13","14", "32", "33", "34"))%>%
+  add_column(Year=c(rep(2021,2), rep(2020,4), rep(2021,2), rep(2021,4), rep(2021,2), rep(2020,3), rep(2021,2), rep(2021,2), rep(2021,4), rep(2021,4), rep(2021,3)))
+                    
+   
+
+
+ TemporalPlot3 <- TemporalPlot1 %>%
+   add_row(sound=TemporalPlot2.1$sound, Year=TemporalPlot2.1$Year, Month=TemporalPlot2.1$Month, DAY_DISPLAY=NA, StatWeekLU=TemporalPlot2.1$StatWeek, DaysFished=0)
+ #this now has the blank rows for plotting
+
+ TemporalPlot4 <- TemporalPlot3 %>%
+  group_by(sound, Year, Month,DAY_DISPLAY, StatWeekLU,BinaryTime)
+ TemporalPlot4$StatWeekLU<-as.factor(TemporalPlot4$StatWeekLU)
+
+
+ #Figures of the number of fishing days across sounds/year across statistical weeks
+P1 <- ggplot(subset(TemporalPlot4, Year==2020), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat="identity") +
+  xlab("Statistical Week") +
+  ylab("Days Fished") +
+  ggtitle("2020") +
+scale_fill_manual(values="#39568CFF")
+
+
+P2 <- ggplot(subset(TemporalPlot4, Year==2021), aes(x=StatWeekLU, y=DaysFished, fill=sound))+
+geom_bar(stat = "identity") +
+  xlab("Statistical Week") +
+   scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished") +
+  ggtitle("2021") +
+  scale_fill_manual(values = c("Barkley"="#440154FF", "Clayoquot" = "#39568CFF", "Nootka" = "#1F968BFF", "Quatsino" = "#FDE725FF", "Kyuquot"="#55C667FF"))
+
+
+#coloured by AM vs PM fishing days
+#I needed to remove NA values but this addmitted all of these rows, no comprehensive x-axis is shown now for statistical week
+P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=BinaryTime))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+    ylab("Days Fished")+
+   scale_fill_manual(values = c("AM"="#FDE725FF", "PM"="#440154FF", "Unknown"="gray48"))
+
+
+P4<-ggplot(subset(TemporalPlot4, Year==2021 & !is.na(BinaryTime)), aes(x=StatWeekLU, y=DaysFished, fill=na.omit(BinaryTime)))+
+geom_bar(stat="identity")+
+  xlab("Statistical Week")+
+  scale_y_continuous(breaks = c(0,2, 4, 6, 8, 10))+
+    ylab("Days Fished")+
+  ggtitle("2021")+
+  scale_fill_manual(values = c("AM"="#FDE725FF", "PM"="#440154FF", "Unknown"="gray48"))
+
+
+P1.P2 <- plot_grid(P1 +theme(legend.position = "none")
+          , P2 + theme(legend.position = "none"))
+
+P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
+          , P4 + theme(legend.position = "none" ))
+
+   legendP1P2 <- get_legend(P2 +
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom", legend.title = element_blank()))
+
+   legendP3P4 <- get_legend(P4 +
+    guides(color = guide_legend(nrow = 2)) +
+    theme(legend.position = "bottom",legend.title = element_blank()))
+
+
+  DaysFished <- plot_grid(P1.P2, legendP1P2, ncol = 1, rel_heights = c(1, .1))
+  FishingTime <- plot_grid(P3.P4, legendP3P4, ncol = 1, rel_heights = c(1, .1))
+
+  DaysFished
+
+  FishingTime
+
 ```
 
   
