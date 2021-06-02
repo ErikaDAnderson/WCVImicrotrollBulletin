@@ -301,18 +301,24 @@ if (!dir.exists("Figures")) dir.create("Figures")
 
 # create function to make maps and save for each species and sound
 # ***need to incorporate auto sizing depending on number of maps
-mapAndSavefn <- function(soundName, binNumber) {
+mapAndSavefn <- function(soundName) {
   
   finalmapCK <- mapSoundfn(soundName, mapdf, "high", "CK")
+  plotnameCK <- str_c("Figures/", str_to_title(soundName), "CKmap.png")
+  
   if (!is.null(finalmapCK)) {
-  plotnameCK <- str_c(str_to_title(soundName), "CKmap.png")
-  ggsave(plotnameCK, finalmapCK, path = "Figures", dpi = 300)
+    ggsave(plotnameCK, finalmapCK, dpi = 300)
+  } else {
+    file.remove(plotnameCK)
   }
 
   finalmapCO <- mapSoundfn(soundName, mapdf, "high", "CO")
-  if (!is.null(finalmapCK)) {
-  plotnameCO <- str_c(str_to_title(soundName), "COmap.png")
-  ggsave(plotnameCO, finalmapCO, path = "Figures", dpi = 300)
+  plotnameCO <- str_c("Figures/", str_to_title(soundName), "COmap.png")
+  
+  if (!is.null(finalmapCO)) {
+  ggsave(plotnameCO, finalmapCO, dpi = 300)
+  } else {
+    file.remove(plotnameCO)
   }
   
 }
