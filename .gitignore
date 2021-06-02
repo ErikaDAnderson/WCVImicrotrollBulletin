@@ -5,6 +5,7 @@
 
 Data/
 Figures/
+Output/
 *.pdf
 
 InSeasonDataUpdate.log
