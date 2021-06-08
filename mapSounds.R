@@ -197,7 +197,7 @@ mapSoundfn <- function(soundName, mapdf, resolution,
     
   }
   
-  if (thisSpecies == "CK" & length(unique(df_ck$MONTH_DISPLAY)) > 1) {
+  if (thisSpecies == "CK" & length(unique(df_no$MONTH_DISPLAY)) > 1) {
   # map in hexogonal binswith count of fish per bin
   thismap <- basemap +
     geom_point(data = df_no,
@@ -217,7 +217,7 @@ mapSoundfn <- function(soundName, mapdf, resolution,
     
   }
   
-  if (thisSpecies == "CK" & length(unique(df_ck$MONTH_DISPLAY)) == 1) {
+  if (thisSpecies == "CK" & length(unique(df_no$MONTH_DISPLAY)) == 1) {
 
     thislabel <- str_c(unique(df_ck$MONTH_DISPLAY), " Only")
     
@@ -243,7 +243,7 @@ mapSoundfn <- function(soundName, mapdf, resolution,
                  fill = "white")
   }
   
-  if (thisSpecies == "CO" & length(unique(df_co$MONTH_DISPLAY)) > 1) {
+  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) > 1) {
   thismap <- basemap +
     geom_point(data = df_no,
                aes(start_longitude, start_latitude),
@@ -262,7 +262,7 @@ mapSoundfn <- function(soundName, mapdf, resolution,
     facet_wrap(~ MONTH_DISPLAY, ncol = 2)
   }
   
-  if (thisSpecies == "CO" & length(unique(df_co$MONTH_DISPLAY)) == 1) {
+  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) == 1) {
     
     thislabel <- str_c(unique(df_co$MONTH_DISPLAY), " Only")
     
