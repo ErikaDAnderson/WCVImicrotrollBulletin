@@ -2,8 +2,7 @@
 title: "WCVI Microtrolling Data Update"
 output:
   pdf_document:
-    toc: true
-    toc_depth: 2
+    toc: false
 header-includes:
  \usepackage{float}
  \floatplacement{figure}{H}
@@ -14,7 +13,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data in season from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -82,7 +81,8 @@ ocean <- ocean_orig %>%
 
 fish <- fish_orig 
 
-stomach <- stomach_orig
+stomach <- stomach_orig %>%
+  mutate(prey_item = if_else(prey_item == "96", "096", prey_item))
 
 stomachLU <- stomachLU_orig
 
@@ -144,12 +144,15 @@ sumfish <- sets %>%
   select(-MONTH_ORDER)
 
 kableExtra::kable(sumfish,
-                  col.names = c("Month", "Location", "Days Fished", "AD Clipped CN", "Unclipped CN","Unk CN", "AD Clipped CO", "Unclipped CO", "Unk CO", "Random", "Clinical"),
+                  col.names = c("Month", "Location", "Days\nFished", "AD\nClipped\nCN", "Unclipped CN","Unk CN", "AD Clipped CO", "Unclipped CO", "Unk CO", "Random", "Clinical"),
                   booktabs = TRUE,
                   caption = "Summary of Salmon Caught and Samples Collected. Acronymns include AD = adipose fin, CN = chinook, CO = coho, and Unk = unknown.") %>%
-  kable_styling(latex_options="scale_down") %>%
-  add_header_above(c(" " = 3, "Catch" = 6, "Samples" = 2))
+  add_header_above(c(" " = 3, "Catch" = 6, "Samples" = 2)) %>%
+  column_spec(3:11, width = "1cm")
 
+```
+
+```{r nontargetcatch}
 #Non-targeted catch table 
 sumfish_bycatch <- sets %>%
   # note -> use full join to find missing sets
@@ -190,8 +193,10 @@ sumfish_bycatch <- sets %>%
 
 kableExtra::kable(sumfish_bycatch,
                   col.names = c("Month", "Location", "Days Fished", "Lingcod", "Pacific Herring", "Canary RF", "Copper RF","Quillback RF", "SilverGray RF", "Tiger RF", "Yellowtail RF", "Unk RF", "Unk FF"), booktabs = TRUE, caption = "Summary of non-targeted catch. Acronymns include RF = Rockfish, Unk = Unknown, and FF = Finfish.") %>%
-  kable_styling(latex_options="scale_down", font_size = 10) %>%
-  add_header_above(c(" " = 3, "Catch" = 10))
+  #kable_styling(latex_options = "scale_down", font_size = 10) %>%
+  add_header_above(c(" " = 3, "Catch" = 10)) %>%
+                        landscape() %>%
+  column_spec(3:13, width = "1.2cm")
 ```
 
 ```{r FishingSetDetails, fig.align = 'center', fig.cap = "Spread of fishing ays across statistical weeks and locations"}
@@ -252,7 +257,7 @@ left_join(., statweekspermonth, by = c("Month" = "Month")) %>%
 summarize(missingweeks = totalstatweeks - n,
           .groups = "drop") %>%
   filter(!missingweeks=="0")
-View(TemporalPlot2)
+#View(TemporalPlot2)
 #need to automate this still, need to work on
 TemporalPlot2.1 <- uncount(TemporalPlot2, missingweeks) %>% #create the dataframe needed to fill blank rows
 add_column(StatWeek= c("22", "23", "122", "123", "124", "125","21", "22","11", "12", "13", "15", "32", "33","111", "112", "113", "31", "32","21", "22","11", "12", "13", "15","11", "12", "13","14", "32", "33", "34"))%>%
@@ -291,6 +296,7 @@ P3<-ggplot(subset(TemporalPlot4, Year==2020 & !is.na(BinaryTime)), aes(x=StatWee
 geom_bar(stat="identity")+
   xlab("Statistical Week")+
     ylab("Days Fished")+
+  ggtitle("2020")+
    scale_fill_manual(values = c("AM"="#FDE725FF", "PM"="#440154FF", "Unknown"="gray48"))
 
 
@@ -325,9 +331,6 @@ P3.P4 <- plot_grid(P3 + theme(legend.position = "none")
 ```
 
 
-
-
-
 ```{r FishingSetDetails2, fig.align = 'center', fig.cap = "Spread of fishing days ocurring in the AM and PM across locations"}
 
 FishingTime
@@ -341,16 +344,11 @@ The following maps show juvenile chinook and coho salmon catch in counts of salm
 ```{r maps, message = FALSE}
 # use R script mapSounds.R to create new maps
 # QC the coordinates in that script to find errors
-# having maps in Figures folder are needed to allow this report to be generated
-
-# make sure you are not using old maps :)
-# delete/move older maps from the Figures folder
-# I cropped some maps in paint as a quick fix
-# future fix -> fix size for variable number of facets?
+# Figures folder with maps required to produce this report
 
 ```
 
-```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Chinook Salmon Catch and Fishing Effort"}
+```{r quatsinoMapCK, fig.align = 'center', fig.cap = "Quatsino Sound Juvenile Chinook Salmon Catch and Fishing Effort"}
 
 quatsinoMapNameCK <- here::here("Figures", "QuatsinoCKmap.png")
 
@@ -360,7 +358,7 @@ knitr::include_graphics(quatsinoMapNameCK)
   
 ```
 
-```{r quatsinoMapCO, fig.align = 'center', fig.cap = "Quatsino Sound Coho Salmon Catch and Fishing Effort"}
+```{r quatsinoMapCO, fig.align = 'center', fig.cap = "Quatsino Sound Juvenile Coho Salmon Catch and Fishing Effort"}
 
 quatsinoMapNameCO <- here::here("Figures", "QuatsinoCOmap.png")
 
@@ -370,47 +368,27 @@ knitr::include_graphics(quatsinoMapNameCO)
   
 ```
 
-```{r kyuquotMapCK, fig.align = 'center', fig.cap = "Kyuquot Sound Chinook Salmon Catch and Fishing Effort"}
+```{r kyuquotMap, fig.align = 'center', fig.cap = "Kyuquot Sound Juvenile Salmon Catch and Fishing Effort"}
 
-kyuquotMapNameCK <- here::here("Figures", "KyuquotCKmap.png")
+kyuquotMapName <- here::here("Figures", "Kyuquotmap.png")
 
-if (file.exists(kyuquotMapNameCK)) {
-knitr::include_graphics(kyuquotMapNameCK)
+if (file.exists(kyuquotMapName)) {
+knitr::include_graphics(kyuquotMapName)
 } 
 
 ```
 
-```{r kyuquotMapCO, fig.align = 'center', fig.cap = "Kyuquot Sound Coho Salmon Catch and Fishing Effort"}
+```{r nootkaMap, fig.align = 'center', fig.cap = "Nootka Sound Juvenile Salmon Catch and Fishing Effort"}
 
-kyuquotMapNameCO <- here::here("Figures", "KyuquotCOmap.png")
+nootkaMapName <- here::here("Figures", "Nootkamap.png")
 
-if (file.exists(kyuquotMapNameCO)) {
-knitr::include_graphics(kyuquotMapNameCO)
+if (file.exists(nootkaMapName)) {
+knitr::include_graphics(nootkaMapName)
 } 
 
 ```
 
-```{r nootkaMapCK, fig.align = 'center', fig.cap = "Nootka Sound Chinook Salmon Catch and Fishing Effort"}
-
-nootkaMapNameCK <- here::here("Figures", "NootkaCKmap.png")
-
-if (file.exists(nootkaMapNameCK)) {
-knitr::include_graphics(nootkaMapNameCK)
-} 
-
-```
-
-```{r nootkaMapCO, fig.align = 'center', fig.cap = "Nootka Sound Coho Salmon Catch and Fishing Effort"}
-
-nootkaMapNameCO <- here::here("Figures", "NootkaCOmap.png")
-
-if (file.exists(nootkaMapNameCO)) {
-knitr::include_graphics(nootkaMapNameCO)
-} 
-
-```
-
-```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Chinook Salmon Catch and Fishing Effort"}
+```{r clayoquotMapCK, fig.align = 'center', fig.cap = "Clayoquot Sound Juvenile Chinook Salmon Catch and Fishing Effort"}
 
 clayoquotMapNameCK <- here::here("Figures", "ClayoquotCKmap.png")
 
@@ -420,7 +398,7 @@ knitr::include_graphics(clayoquotMapNameCK)
 
 ```
 
-```{r clayoquotMapCO, fig.align = 'center', fig.cap = "Clayoquot Sound Coho Salmon Catch and Fishing Effort"}
+```{r clayoquotMapCO, fig.align = 'center', fig.cap = "Clayoquot Sound Juvenile Coho Salmon Catch and Fishing Effort"}
 
 clayoquotMapNameCO <- here::here("Figures", "ClayoquotCOmap.png")
 
@@ -430,25 +408,15 @@ knitr::include_graphics(clayoquotMapNameCO)
 
 ```
 
-```{r barkleyMapCK, fig.align = 'center', fig.cap = "Barkley Sound Chinook Salmon Catch and Fishing Effort"}
+```{r barkleyMap, fig.align = 'center', fig.cap = "Barkley Sound Juvenile Salmon Catch and Fishing Effort"}
 
-barkleyMapNameCK <- here::here("Figures", "BarkleyCKmap.png")
+barkleyMapName <- here::here("Figures", "Barkleymap.png")
 
-if (file.exists(barkleyMapNameCK)) {
-knitr::include_graphics(barkleyMapNameCK)
+if (file.exists(barkleyMapName)) {
+knitr::include_graphics(barkleyMapName)
 } 
 
 ```
- 
-```{r barkleyMapCO, fig.align = 'center', fig.cap = "Barkley Sound Coho Salmon Catch and Fishing Effort"}
-
-barkleyMapNameCO <- here::here("Figures", "BarkleyCOmap.png")
-
-if (file.exists(barkleyMapNameCO)) {
-knitr::include_graphics(barkleyMapNameCO)
-} 
-
-``` 
  
 ## Salmon Lengths and Weights
 
@@ -626,7 +594,7 @@ stomach.1 <- stomach %>%
   mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
   mutate(CountPrey = 1) # making a column to plot counts, this will include prey that appear in multiple fish
 #n_distinct(stomach.1$fish_id) #19 fish represented here
-View(stomach.1)
+#View(stomach.1)
 # EA - order factor by months over winter
 stomach.1$Month <- factor(stomach.1$Month,
                              levels = c("Sep", "Oct", "Nov", "Dec",
@@ -677,7 +645,7 @@ Preliminary information on clinical signs observed in caught juvenile salmon are
 
 ```{r clinical, fig.height = 3, fig.cap="Observed clinical signs in caught juvenile chinook salmon."}
 
-# Could use a Venn diagram for this,but may not relay informaiton as well as the below graph and is nit picky to format
+# Could use a Venn diagram for this,but may not relay information as well as the below graph and is nit picky to format
 
 #Figure of observed clinical signs across sounds and months
 clinical <- fish %>%
@@ -690,10 +658,10 @@ clinical <- fish %>%
          sound = str_to_title(sound)) %>%
   mutate(date = lubridate::ymd(date)) %>% #formatted so R recognizes this as a date
 filter(!is.na(Month)) %>% #removed 14 rows with an NA date
-filter(!comments_field=="DROPPED. TATTERED DORSAL", !comments_field=="BOUNCED") #removing these other_clinical_y_ns signs, these were injuries that came about post capture- hanlding injury
-#note that any "other_clinical_y_n" observations with an NA for the comments are removed in this code (default of filter I think, this is fine we can't confirm if a clinical sign is realyl clinical if no comment was given)
+filter(!comments_field=="DROPPED. TATTERED DORSAL", !comments_field=="BOUNCED") #removing these other_clinical_y_ns signs, these were injuries that came about post capture- handling injury
+#note that any "other_clinical_y_n" observations with an NA for the comments are removed in this code (default of filter I think, this is fine we can't confirm if a clinical sign is realty clinical if no comment was given)
 
-View(clinical)
+#View(clinical)
 # As above order factors by month
 clinical$Month <- factor(clinical$Month,
                              levels = c("Sep", "Oct", "Nov", "Dec",
@@ -706,7 +674,8 @@ clinical.1 <- clinical %>%
 gather(sign, y_n, 5:12) %>%
 filter(!is.na(y_n)) %>%
 filter(y_n=="Y") %>%
-mutate(CountClinical = 1)
+mutate(CountClinical = 1) %>%
+  mutate(signDisplay = str_replace_all(sign, "_yn", ""))
 
 numclinical <- clinical.1 %>%
   select(fish_id) %>%
@@ -714,8 +683,7 @@ numclinical <- clinical.1 %>%
   nrow()
 #65 fish
 
-
-ggplot(clinical.1, aes(x = sign, y = CountClinical, fill = sound)) +
+ggplot(clinical.1, aes(x = signDisplay, y = CountClinical, fill = sound)) +
   geom_bar(stat = "identity") +
   xlab("Clinical Sign") +
   ylab("Number of fish") +
@@ -730,7 +698,7 @@ ggplot(clinical.1, aes(x = sign, y = CountClinical, fill = sound)) +
 clinical.other <- clinical %>%
   filter(other_clinical_yn=="Y") %>%
   select(sound, fish_id, species, Month,other_clinical_yn, comments_field)
-View(clinical.other)
+#View(clinical.other)
 
 #for now I will add in a column describing the injury - we need a good way to automate this for the future to show this data
 clinical.other <-clinical.other %>%
@@ -774,7 +742,7 @@ otherSamples <- fish %>%
   summarise(gills = sum(!(is.na(gill_vial))),
             dna = sum(!(is.na(fin_vial))),
             sealice = sum(sea_lice_yn == "Y"),
-            otoliths = n(),
+            otoliths = sum(!is.na(otolith_cell)),
             cwt = sum(!(is.na(cwt))),
             .groups = "drop") %>%
     mutate(MONTH_ORDER = case_when(
