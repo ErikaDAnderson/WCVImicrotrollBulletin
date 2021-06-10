@@ -7,6 +7,8 @@
 # Create maps salmon caught in up to five WCVI sounds
 # use to QC data coordinates 
 # maps used InSeasonDataUpdate.Rmd
+# manually adjusted in 2020/2021 since different fishing effort
+# 
 #
 #=====================================================================================================
 
@@ -17,6 +19,7 @@ library(lubridate) # date times
 library(bcmaps) # bc basemaps
 library(hexbin) # stat_binhex() function
 library(viridis) # color themes for color blind people
+library(cowplot) # arrange plots aligned with and without legends
 
 
 ###############
@@ -55,7 +58,7 @@ fish <- fish_orig
 mapdf <- site %>%
   # this joins gives the most rows (and highlights missing sets or sites)
   # may need to QC the results based on what is missing, before selecting columns
-  full_join(., sets, by = c("site_id", "timezone")) %>%
+  full_join(., sets, by = "site_id") %>%
   full_join(., fish, by = "fishingset_id") %>%
   mutate(MONTH_DISPLAY = month(date, label = TRUE, abbr = TRUE)) %>%
   select(sound, species, start_latitude, start_longitude, 
@@ -103,7 +106,7 @@ write_csv(qcCoordinates, fileName)
 # create function to map each sound sampled
 ############################################
 mapSoundfn <- function(soundName, mapdf, resolution, 
-                       thisSpecies) {
+                       thisSpecies, binNumCK, binNumCO) {
   
   df <- mapdf %>%
     filter(sound == toupper(soundName)) %>%
@@ -127,11 +130,11 @@ mapSoundfn <- function(soundName, mapdf, resolution,
   }
   
   if (soundName == "BARKLEY") {
+    
     minLat <- 48.75
     maxLat <- 49.1
     minLon <- -125.5
     maxLon <- -124.9
-
   }
   
   if (soundName == "NOOTKA") {
@@ -148,14 +151,13 @@ mapSoundfn <- function(soundName, mapdf, resolution,
     minLon <- -127.4
     maxLon <- -127.0
   }
-  
+
   # df for each species
   # df_ck <- df %>% filter(species == "CN" | is.na(species))
   # df_co <- df %>% filter(species == "CO" | is.na(species))
   df_ck <- df %>% filter(species == "CN")
   df_co <- df %>% filter(species == "CO")
   df_no <- df %>% filter(is.na(species))
-  
   
   ##  Mapping data from bcmaps
   bcn <- bc_neighbours()
@@ -198,28 +200,29 @@ mapSoundfn <- function(soundName, mapdf, resolution,
   }
   
   if (thisSpecies == "CK" & length(unique(df_no$MONTH_DISPLAY)) > 1) {
-  # map in hexogonal binswith count of fish per bin
+  # map in hexogonal bins with count of fish per bin
   thismap <- basemap +
     geom_point(data = df_no,
                aes(start_longitude, start_latitude),
                shape = 3) +
     stat_binhex(data = df_ck,
                 aes(start_longitude, start_latitude),
-                alpha = 0.7) +
+                alpha = 0.7,
+                binwidth = binNumCK) +
     scale_fill_viridis() +
     #scale_fill_gradient(low = "darkblue", high = "red") +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
-          strip.background = element_rect(fill = "white")) +
+          strip.background = element_rect(fill = "white"),
+          panel.background = element_blank()) +
     labs(fill = "Count",
-         subtitle = str_c(str_to_title(soundName), " Chinook Salmon")) +
+         subtitle = " Chinook Salmon") +
     facet_wrap(~MONTH_DISPLAY, ncol = 2)
-    
   }
   
   if (thisSpecies == "CK" & length(unique(df_no$MONTH_DISPLAY)) == 1) {
 
-    thislabel <- str_c(unique(df_ck$MONTH_DISPLAY), " Only")
+    thislabel <- unique(df_ck$MONTH_DISPLAY)
     
     # map in hexogonal binswith count of fish per bin
     thismap <- basemap +
@@ -228,43 +231,87 @@ mapSoundfn <- function(soundName, mapdf, resolution,
                  shape = 3) +
       stat_binhex(data = df_ck,
                   aes(start_longitude, start_latitude),
-                  alpha = 0.7) +
+                  alpha = 0.7,
+                  binwidth = binNumCK) +
       scale_fill_viridis() +
       #scale_fill_gradient(low = "darkblue", high = "red") +
       theme(axis.text = element_blank(),
             axis.title = element_blank(),
-            strip.background = element_rect(fill = "white")) +
+            strip.background = element_rect(fill = "white"),
+            panel.background = element_blank()) +
       labs(fill = "Count",
-           subtitle = str_c(str_to_title(soundName), " Chinook Salmon")
-           ) +
+           subtitle = " Chinook Salmon") +
       geom_label(aes(x = maxLon, y = maxLat , label = thislabel),
                  hjust = "inward", 
                  vjust = "inward",
                  fill = "white")
   }
   
-  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) > 1) {
+  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) > 1 & nrow(df_co) > 1) {
   thismap <- basemap +
     geom_point(data = df_no,
                aes(start_longitude, start_latitude),
                shape = 3) +
     stat_binhex(data = df_co,
                 aes(start_longitude, start_latitude),
-                alpha = 0.7) +
+                alpha = 0.7,
+                binwidth = binNumCO) +
     scale_fill_viridis() +
     #scale_fill_gradient(low = "darkblue", high = "red") +
     theme(axis.text = element_blank(),
-          axis.title = element_blank(),
-          strip.background = element_rect(fill = "white")) +
+          axis.title = element_blank()) +
     labs(fill = "Count",
-         subtitle = str_c(str_to_title(soundName), " Coho Salmon")
-         ) +
+         subtitle = " Coho Salmon") +
     facet_wrap(~ MONTH_DISPLAY, ncol = 2)
+  }
+  
+  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) > 1 & nrow(df_co) == 0) {
+    thismap <- basemap +
+      geom_point(data = df_no,
+                 aes(start_longitude, start_latitude),
+                 shape = 3) +
+      stat_binhex(data = df_co,
+                  aes(start_longitude, start_latitude),
+                  alpha = 0.7,
+                  binwidth = binNumCO) +
+      scale_fill_viridis() +
+      #scale_fill_gradient(low = "darkblue", high = "red") +
+      theme(axis.text = element_blank(),
+            axis.title = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            panel.background = element_blank()) +
+      labs(fill = "Count",
+           subtitle = " Coho Salmon") +
+      facet_wrap(~ MONTH_DISPLAY, ncol = 2)
+  }
+  
+  if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) > 1 & nrow(df_co) == 1) {
+    
+    thismap <- basemap +
+      geom_point(data = df_no,
+                 aes(start_longitude, start_latitude),
+                 shape = 3) +
+      geom_point(data = df_co,
+                  aes(start_longitude, start_latitude),
+                  alpha = 0.7,
+                 # use findcolor <- ggplot_build(finalmapCK)$data
+                 # to find color used in chinook plot
+                 color = "#440154",
+                 size = 5) +
+      #scale_fill_viridis() +
+      theme(axis.text = element_blank(),
+            axis.title = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            panel.background = element_blank()) +
+      labs(fill = "Count",
+           subtitle = " Coho Salmon",
+           caption = "Only one coho salmon caught in November") +
+      facet_wrap(~ MONTH_DISPLAY, ncol = 2)
   }
   
   if (thisSpecies == "CO" & length(unique(df_no$MONTH_DISPLAY)) == 1) {
     
-    thislabel <- str_c(unique(df_co$MONTH_DISPLAY), " Only")
+    thislabel <- unique(df_no$MONTH_DISPLAY)
     
     thismap <- basemap +
       geom_point(data = df_no,
@@ -272,26 +319,26 @@ mapSoundfn <- function(soundName, mapdf, resolution,
                  shape = 3) +
       stat_binhex(data = df_co,
                   aes(start_longitude, start_latitude),
-                  alpha = 0.7) +
+                  alpha = 0.7,
+                  binwidth = binNumCO) +
       scale_fill_viridis() +
       #scale_fill_gradient(low = "darkblue", high = "red") +
-      # theme(axis.text = element_blank(),
-      #       axis.title = element_blank(),
-      #       strip.background = element_rect(fill = "white")) +
+      theme(axis.text = element_blank(),
+            axis.title = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            panel.background = element_blank()) +
       labs(fill = "Count",
-           subtitle = str_c(str_to_title(soundName), " Coho Salmon")
-                            ) +
+           subtitle = " Coho Salmon") +
       geom_label(aes(x = maxLon, y = maxLat , label = thislabel),
-                      hjust = "inward", 
+                      hjust = "inward",
                       vjust = "inward",
                       fill = "white")
   }
   
   if (exists("thismap") == TRUE) {
   return(thismap)
+    }
   }
-}
-
 
 ###############
 # make maps
@@ -299,39 +346,132 @@ mapSoundfn <- function(soundName, mapdf, resolution,
 # create Figure folder if it doesn't exist yet
 if (!dir.exists("Figures")) dir.create("Figures")
 
+# this is fussy and needs more automation
+# for now need to adjust based on the data
 # create function to make maps and save for each species and sound
-# ***need to incorporate auto sizing depending on number of maps
-mapAndSavefn <- function(soundName) {
+mapAndSavefn <- function(soundName, mapdf, 
+                         binNumCK, binNumCO, thisheight) {
   
-  finalmapCK <- mapSoundfn(soundName, mapdf, "high", "CK")
-  plotnameCK <- str_c("Figures/", str_to_title(soundName), "CKmap.png")
+  finalmapCK <- mapSoundfn(soundName, mapdf, "high", "CK", 
+                           binNumCK, binNumCO)
   
-  if (!is.null(finalmapCK)) {
-    ggsave(plotnameCK, finalmapCK, dpi = 300)
-  } else {
-    file.remove(plotnameCK)
+  finalmapCO <- mapSoundfn(soundName, mapdf, "high", "CO", 
+                           binNumCK, binNumCO)
+  
+  if (soundName %in% c("NOOTKA", "KYUQUOT")) {
+    theme_set(theme_minimal())
+    
+    finalmap <- cowplot::plot_grid(
+      plot_grid(
+        finalmapCK + theme(legend.position = "none"),
+        finalmapCO,
+        ncol = 1,
+        align = "hv"),
+      plot_grid(
+        get_legend(finalmapCK),
+        ggplot(),
+        ncol = 1),
+      rel_widths = c(8,2)
+    )
+    
+    plotname <- str_c("Figures/", str_to_title(soundName), "map.png")
+    
+    if (!is.null(finalmap)) {
+      ggsave(plotname, finalmap, 
+             dpi = 300, height = thisheight)
+    } else {
+      file.remove(plotname)
+    }
   }
-
-  finalmapCO <- mapSoundfn(soundName, mapdf, "high", "CO")
-  plotnameCO <- str_c("Figures/", str_to_title(soundName), "COmap.png")
   
-  if (!is.null(finalmapCO)) {
-  ggsave(plotnameCO, finalmapCO, dpi = 300)
-  } else {
-    file.remove(plotnameCO)
+  if (soundName %in% c("BARKLEY")) {
+    
+    finalmap <- cowplot::plot_grid(
+      finalmapCK,
+      finalmapCO,
+      ncol = 1,
+      align = "hv")
+    
+    plotname <- str_c("Figures/", str_to_title(soundName), "map.png")
+    
+    if (!is.null(finalmap)) {
+      ggsave(plotname, finalmap, 
+             dpi = 300, height = thisheight)
+    } else {
+      file.remove(plotname)
+    }
+    
   }
   
+  if (soundName %in% c("CLAYOQUOT", "QUATSINO")) {
+    
+    plotnameCK <- str_c("Figures/", str_to_title(soundName), "CKmap.png")
+    
+    if (!is.null(finalmapCK)) {
+      ggsave(plotnameCK, finalmapCK, 
+             dpi = 300, height = thisheight)
+    } else {
+      file.remove(plotnameCK)
+    }
+    
+    plotnameCO <- str_c("Figures/", str_to_title(soundName), "COmap.png")
+    
+    if (!is.null(finalmapCO)) {
+      ggsave(plotnameCO, finalmapCO, 
+             height = thisheight)
+    } else {
+      file.remove(plotnameCO)
+    }
+  }
 }
 
-# only make maps if they have fished
-whereFishedvec <- mapdf %>%
-  group_by(sound) %>%
-  count() %>%
-  filter(!(is.na(sound))) %>%
-  pull(sound)
+# adjust binwidth based on data if hex bins too big or small
+# adjust height to remove whitespace
+mapAndSavefn("QUATSINO", mapdf, 
+             c(0.07, 0.026), c(0.07, 0.026), 5)
+mapAndSavefn("NOOTKA", mapdf,  
+             c(0.035, 0.03), c(0.035, 0.03), 6)
+mapAndSavefn("KYUQUOT", mapdf, 
+             c(0.03, 0.02), c(0.03, 0.02), 6)
+mapAndSavefn("CLAYOQUOT", mapdf, 
+             c(0.07, 0.04), c(0.007, 0.004), 8.5)
+mapAndSavefn("BARKLEY", mapdf, 
+             c(0.06, 0.02), c(0.05, 0.016), 6)
 
-# make maps in areas fished and save
-map(whereFishedvec, mapAndSavefn)
+# # function to make maps and save for each species and sound
+# # ***need to incorporate auto sizing depending on number of maps
+# mapAndSavefn <- function(soundName, mapdf, 
+#                           binNumCK, binNumCO, thisheight) {
+#   
+#   finalmapCK <- mapSoundfn(soundName, mapdf, "high", "CK")
+#   plotnameCK <- str_c("Figures/", str_to_title(soundName), "CKmap.png")
+#   
+#   if (!is.null(finalmapCK)) {
+#     ggsave(plotnameCK, finalmapCK, dpi = 300)
+#   } else {
+#     file.remove(plotnameCK)
+#   }
+#   
+#   finalmapCO <- mapSoundfn(soundName, mapdf, "high", "CO")
+#   plotnameCO <- str_c("Figures/", str_to_title(soundName), "COmap.png")
+#   
+#   if (!is.null(finalmapCO)) {
+#     ggsave(plotnameCO, finalmapCO, dpi = 300)
+#   } else {
+#     file.remove(plotnameCO)
+#   }
+#   
+# }
+# 
+# # only make maps if they have fished
+# whereFishedvec <- mapdf %>%
+#   group_by(sound) %>%
+#   count() %>%
+#   filter(!(is.na(sound))) %>%
+#   pull(sound)
+# 
+# # make maps in areas fished and save
+# map(whereFishedvec, mapAndSavefn)
 
 # list warnings for removed coordinates
 # if sourcing the code rather than stepping thru code
