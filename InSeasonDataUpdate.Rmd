@@ -13,7 +13,7 @@ header-includes:
 ---
 
 ## Purpose
-The purpose of this data bulletin is to share preliminary data from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
+The purpose of this data bulletin is to share preliminary data from microtrolling fishing events targeting juvenile chinook and coho salmon in West Coast Vancouver Island (WCVI) Sounds, including Barkley, Clayoquot, Nootka, Kyuquot, and Quatsino. For more information on this project, please contact Jessy Bokvist at Jessy.Bokvist@dfo-mpo.gc.ca. This report was produced on `r format(Sys.Date(), "%b. %d, %Y")`.
 
 ```{r setup, include=FALSE}
 
@@ -146,7 +146,7 @@ sumfish <- sets %>%
 kableExtra::kable(sumfish,
                   col.names = c("Month", "Location", "Days\nFished", "AD\nClipped\nCN", "Unclipped CN","Unk CN", "AD Clipped CO", "Unclipped CO", "Unk CO", "Random", "Clinical"),
                   booktabs = TRUE,
-                  caption = "Summary of Salmon Caught and Samples Collected. Acronymns include AD = adipose fin, CN = chinook, CO = coho, and Unk = unknown.") %>%
+                  caption = "Summary of Salmon Caught and Samples Collected. Acronymns include AD = adipose fin, CN = chinook, CO = coho, and Unk = unknown clip status.") %>%
   add_header_above(c(" " = 3, "Catch" = 6, "Samples" = 2)) %>%
   column_spec(3:11, width = "1cm")
 
@@ -199,7 +199,7 @@ kableExtra::kable(sumfish_bycatch,
   column_spec(3:13, width = "1.2cm")
 ```
 
-```{r FishingSetDetails, fig.align = 'center', fig.cap = "Spread of fishing ays across statistical weeks and locations"}
+```{r FishingSetDetails, fig.align = 'center', fig.cap = "Spread of fishing days across statistical weeks and locations"}
 #Temporal spread of fishing Events Figure broken down by stat week
 #JB still need to automate
 
@@ -576,7 +576,7 @@ if (is.null(BarkleyCO) == FALSE) {
 
 ## Stomach Content Analysis
 
-Preliminary information on prey items identified in sample stomachs are shown below, remaining samples will be processed and updated here.
+Preliminary information on prey items identified in sampled juvenile stomachs are shown below.
 ```{r Stomach Content."}
 
 #Figure of Stomach content across sounds and fishing trips 
@@ -641,7 +641,7 @@ knitr::include_graphics(here::here("Figures", "Photos", "Pacific Octopus Paralar
 ```
 ## Observed Clinical Signs
 
-Preliminary information on clinical signs observed in caught juvenile salmon are shown below. Clinical signs categorized as "other" in the field are further broken down with field crew's descriptions. 
+Preliminary information on clinical signs observed in caught juvenile salmon are shown below. Clinical signs categorized as "other" in the field are further broken down based on the sampling crew's descriptions. 
 
 ```{r clinical, fig.height = 3, fig.cap="Observed clinical signs in caught juvenile chinook salmon."}
 
@@ -725,7 +725,7 @@ ggplot(clinical.other, aes(x = other, y = CountOther, fill = sound)) +
 
 ## Other Data
 
-After samples are transported to the Pacific Biological Station, lab analysis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. 
+After samples are transported to the Pacific Biological Station, lab analysis will occur: gill samples and other tissues processed for infectious agents,  stressors and diseases using FitChips; stomachs contents identified and quantified; genetic stock identification estimated using SNPs (single nucleotide polymorphisms); energy density measured; and marine residency estimated from otoliths. Results will be communicated upon analysis completion.
 
 ```{r sampleTable}
 
